@@ -1,1 +1,116 @@
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+
+  /* One accent colour (indigo). Red, amber and green are reserved for status. */
+  --color-accent-50: #eef2ff;
+  --color-accent-100: #e0e7ff;
+  --color-accent-200: #c7d2fe;
+  --color-accent-500: #6366f1;
+  --color-accent-600: #4f46e5;
+  --color-accent-700: #4338ca;
+
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+:root {
+  color-scheme: light;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: #f6f7f9;
+  color: var(--color-slate-900);
+}
+
+/* Popovers and tooltips: enter from slightly smaller, anchored to their trigger. */
+.pop-enter {
+  transition:
+    opacity 150ms var(--ease-out-strong),
+    transform 150ms var(--ease-out-strong);
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+}
+
+/* Toasts: rise from the bottom edge and leave the same way, faster. */
+.toast {
+  transition:
+    opacity 200ms var(--ease-out-strong),
+    transform 200ms var(--ease-out-strong);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.toast[data-leaving="true"] {
+  opacity: 0;
+  transform: translateY(8px);
+  transition-duration: 150ms;
+}
+
+/* Dialog scrim and panel. */
+.dialog-scrim {
+  transition: opacity 180ms ease-out;
+  @starting-style {
+    opacity: 0;
+  }
+}
+.dialog-panel {
+  transition:
+    opacity 200ms var(--ease-out-strong),
+    transform 200ms var(--ease-out-strong);
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* Pressable elements give feedback on press. */
+.press {
+  transition: transform 120ms ease-out;
+}
+.press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* A brief highlight on the element focused from the validation panel. */
+@keyframes focus-flash {
+  from {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-500) 45%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+.focus-flash {
+  animation: focus-flash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-enter,
+  .dialog-panel,
+  .toast,
+  .toast[data-leaving="true"] {
+    transform: none;
+    @starting-style {
+      transform: none;
+    }
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* React Flow: use the app's font. */
+.react-flow {
+  font-family: var(--font-sans);
+}
+.react-flow__handle {
+  border: none;
+}

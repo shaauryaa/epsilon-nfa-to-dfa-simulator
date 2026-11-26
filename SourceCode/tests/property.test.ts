@@ -33,5 +33,6 @@ describe('property: ε-NFA ≡ DFA ≡ minimal DFA on random machines', () => {
     }
     // Sanity check that the generator really exercises ε-transitions.
     expect(withEpsilon).toBeGreaterThan(250)
-  })
+    // Deterministic but CPU-heavy (500 machines × 127 strings); allow for slow or busy CI runners.
+  }, 30_000)
 })

@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["tests", "scripts", "src/core", "src/presets"]
+  "include": ["tests", "scripts", "src/core", "src/presets", "src/model", "src/graph", "src/store/derive.ts"]
 }
