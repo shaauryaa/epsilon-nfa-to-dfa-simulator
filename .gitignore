@@ -19,3 +19,10 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+# Local tooling config and review output
+.claude/
+CLAUDE.md
+review/
+reviews/
+.playwright-cli/
