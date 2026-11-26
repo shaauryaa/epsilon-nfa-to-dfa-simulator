@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import ReactFlow, { Background, BackgroundVariant, Controls, Panel, ReactFlowProvider, useReactFlow, type Edge, type Node } from 'reactflow'
 import { dfaToENFA, epsilonClosureTrace, formatSet, type DFA } from '../../core'
 import { NODE_SIZE, type XY } from '../../graph/layout'
@@ -20,6 +20,27 @@ const edgeTypes = { transition: TransitionEdge }
 const R = NODE_SIZE / 2
 
 
+type DfaShape = { merged: ReturnType<typeof mergedEdges>; routes: ReturnType<typeof routeAll> }
+const dfaShapes = new WeakMap<DFA, Map<string, DfaShape>>()
+
+/**
+ * Edges and routes of the part of a DFA found so far. Routing only changes
+ * when a state or edge is added, so results are cached per shape and reused
+ * across the frames of a step.
+ */
+function dfaRoutes(dfa: DFA, layout: Record<string, XY>, states: string[], transitions: DFA['transitions']): DfaShape {
+  const key = `${states.join(',')}|${JSON.stringify(transitions)}`
+  let cache = dfaShapes.get(dfa)
+  if (!cache) dfaShapes.set(dfa, (cache = new Map()))
+  const hit = cache.get(key)
+  if (hit) return hit
+  const merged = mergedEdges(dfaToENFA({ ...dfa, states, transitions }))
+  const centres = new Map<string, XY>(states.map((s) => [s, { x: (layout[s]?.x ?? 0) + R, y: (layout[s]?.y ?? 0) + R }]))
+  const shape = { merged, routes: routeAll(merged, centres, true) }
+  cache.set(key, shape)
+  return shape
+}
+
 const hasPair = (list: readonly [string, string][], a: string, b: string) => list.some(([x, y]) => x === a && y === b)
 
 interface PaneProps {
@@ -39,10 +60,14 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
   const wrapper = useRef<HTMLDivElement>(null)
   const [mapChoice, setMapChoice] = useState<boolean | null>(null)
   const showMap = mapChoice ?? stateCount >= MINIMAP_MIN_STATES
-  const fit = (duration = 0) => fitReadable(rf, wrapper.current, { includeHidden: true, duration })
+  const latest = useRef(nodes)
+  useLayoutEffect(() => {
+    latest.current = nodes
+  }, [nodes])
+  const fit = (duration = 0) => fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current })
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true }))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current }))
     return () => cancelAnimationFrame(id)
   }, [fitKey, rf])
 
@@ -58,7 +83,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true }))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current }))
     })
     ro.observe(el)
     return () => {
@@ -79,7 +104,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
         elementsSelectable={false}
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true }))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
@@ -172,9 +197,12 @@ function NfaPane({ view }: { view: ConvertView }) {
   }, [nfa, positions, frame, step.index, live, pickedTrace, picked, tokenMs, speed])
 
   const merged = useMemo(() => mergedEdges(nfa), [nfa])
+  // Routes depend only on positions, not on the frame, so they are computed once per layout.
+  const routes = useMemo(() => {
+    const centres = new Map<string, XY>(nfa.states.map((s) => [s, { x: (positions[s]?.x ?? 0) + R, y: (positions[s]?.y ?? 0) + R }]))
+    return routeAll(merged, centres)
+  }, [merged, nfa.states, positions])
   const edges = useMemo<Edge<TransitionEdgeData>[]>(() => {
-    const centres = new Map<string, XY>(nodes.map((n) => [n.id, { x: n.position.x + R, y: n.position.y + R }]))
-    const routes = routeAll(merged, centres)
     const symbolEdges = pickedTrace ? [] : frame.symbolEdges
     const epsEdges = pickedTrace ? pickedTrace.edges : frame.epsilonEdges
     return merged.flatMap((e) => {
@@ -197,7 +225,7 @@ function NfaPane({ view }: { view: ConvertView }) {
         },
       ]
     })
-  }, [merged, nodes, frame, step, live, pickedTrace, tokenMs])
+  }, [merged, routes, frame, step, live, pickedTrace, tokenMs])
 
   const subtitle = pickedTrace ? (
     <>
@@ -212,7 +240,7 @@ function NfaPane({ view }: { view: ConvertView }) {
       subtitle={subtitle}
       nodes={nodes}
       edges={edges}
-      fitKey={`${nfa.states.length}`}
+      fitKey={nfa.states.join(',')}
       legend={<NfaLegend />}
       stateCount={nfa.states.length}
     />
@@ -253,11 +281,8 @@ function DfaPane({ view }: { view: ConvertView }) {
     }))
   }, [dfa, layout, progress, step, live, motionMs])
 
+  const { merged, routes } = useMemo(() => dfaRoutes(dfa, layout, progress.states, progress.transitions), [dfa, layout, progress.states, progress.transitions])
   const edges = useMemo<Edge<TransitionEdgeData>[]>(() => {
-    const partial: DFA = { ...dfa, states: progress.states, transitions: progress.transitions }
-    const merged = mergedEdges(dfaToENFA(partial))
-    const centres = new Map<string, XY>(progress.states.map((s) => [s, { x: (layout[s]?.x ?? 0) + R, y: (layout[s]?.y ?? 0) + R }]))
-    const routes = routeAll(merged, centres, true)
     const d = progress.drawing
     return merged.flatMap((e) => {
       const route = routes.get(e.id)
@@ -283,7 +308,7 @@ function DfaPane({ view }: { view: ConvertView }) {
         },
       ]
     })
-  }, [dfa, progress, layout, step.index, live, motionMs])
+  }, [merged, routes, progress.drawing, step.index, live, motionMs])
 
   return (
     <Pane

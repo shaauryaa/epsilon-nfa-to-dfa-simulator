@@ -151,7 +151,7 @@ body {
 }
 @keyframes node-enter {
   from {
-    transform: scale(0.3);
+    transform: scale(0.6);
     opacity: 0;
   }
   to {
@@ -185,17 +185,25 @@ body {
   }
 }
 
-/* A DFA table cell fills in. */
+/* A DFA table cell fills in: a tint over the cell fades out (opacity only). */
+.cell-fill {
+  position: relative;
+}
+.cell-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--color-blue-200);
+  pointer-events: none;
+  animation: cell-fill 600ms var(--ease-out-strong) both;
+}
 @keyframes cell-fill {
   from {
-    background-color: var(--color-blue-200);
+    opacity: 1;
   }
   to {
-    background-color: var(--color-blue-50);
+    opacity: 0;
   }
-}
-.cell-fill {
-  animation: cell-fill 600ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {

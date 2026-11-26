@@ -1,4 +1,4 @@
-import { getRectOfNodes, MarkerType, type ReactFlowInstance } from 'reactflow'
+import { getRectOfNodes, MarkerType, type Node, type ReactFlowInstance } from 'reactflow'
 import { NODE_SIZE, type XY } from '../../graph/layout'
 import { routeAll as routeAllR, type RoutableEdge, type Route } from '../../graph/routing'
 import { MIN_ZOOM } from './graphParts'
@@ -27,14 +27,16 @@ const TOP_INSET = 56
  *
  * @param rf - The React Flow instance.
  * @param el - The canvas element (for its size).
- * @param opts - Include hidden nodes (DFA states not yet discovered); animation length.
+ * @param opts - Include hidden nodes (DFA states not yet discovered); animation
+ *   length; the nodes to fit (defaults to the instance's, which can lag one
+ *   render behind a just-changed machine).
  */
 export function fitReadable(
   rf: ReactFlowInstance,
   el: HTMLElement | null,
-  opts: { includeHidden?: boolean; duration?: number } = {},
+  opts: { includeHidden?: boolean; duration?: number; nodes?: readonly Node[] } = {},
 ): void {
-  const nodes = rf.getNodes().filter((n) => opts.includeHidden || !n.hidden)
+  const nodes = (opts.nodes ?? rf.getNodes()).filter((n) => opts.includeHidden || !n.hidden)
   if (!el || nodes.length === 0) return
   const b = getRectOfNodes(nodes)
   // Room for the start arrow, self-loops above, captions below.

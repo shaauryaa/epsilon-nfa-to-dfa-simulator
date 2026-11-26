@@ -7,7 +7,7 @@ import { layoutLR, type XY } from '../graph/layout'
 import { mergedEdges } from './graph'
 
 /** Spacing for DFA layouts: room for the subset caption under each state. */
-export const DFA_SPACING = { nodesep: 72, ranksep: 96 }
+export const DFA_SPACING = { nodesep: 80, ranksep: 96 }
 
 /**
  * Lays out a whole DFA once, so states keep their place as they are

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -208,6 +208,7 @@ export function GraphView() {
   const [mapChoice, setMapChoice] = useState<boolean | null>(null)
   const showMap = mapChoice ?? nfa.states.length >= MINIMAP_MIN_STATES
 
+  const latest = useRef<Node[]>([])
   const lit = useMemo(() => {
     if (!hoverCell) return null
     return { source: hoverCell.state, symbol: hoverCell.symbol, targets: new Set(nfa.transitions[hoverCell.state]?.[hoverCell.symbol] ?? []) }
@@ -232,6 +233,9 @@ export function GraphView() {
     }))
   }, [nfa, positions, dragging, selected, lit])
 
+  useLayoutEffect(() => {
+    latest.current = nodes
+  }, [nodes])
   const merged = useMemo(() => mergedEdges(nfa), [nfa])
   const edges = useMemo<Edge<TransitionEdgeData>[]>(() => {
     const centre = new Map<string, XY>(nodes.map((n) => [n.id, { x: n.position.x + R, y: n.position.y + R }]))
@@ -262,7 +266,7 @@ export function GraphView() {
 
   // Re-fit after a preset load, import or re-layout.
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current }))
     return () => cancelAnimationFrame(id)
   }, [layoutNonce, rf])
 
@@ -279,7 +283,7 @@ export function GraphView() {
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current }))
     })
     ro.observe(el)
     return () => {
@@ -365,13 +369,13 @@ export function GraphView() {
         isValidConnection={() => true}
         connectionLineStyle={{ stroke: EDGE_COLOR.highlight, strokeWidth: 1.6 }}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { nodes: latest.current }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#cbd5e1" />
-        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} onFitView={() => fitReadable(rf, wrapper.current)} />
+        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} onFitView={() => fitReadable(rf, wrapper.current, { nodes: latest.current })} />
         {showMap && <CanvasMiniMap />}
         <Panel position="top-right" className="!m-3">
           <div role="toolbar" aria-label="Canvas" className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
@@ -382,7 +386,7 @@ export function GraphView() {
             <button type="button" className={toolButton} onClick={relayout} title="Arrange the states left to right">
               <LayoutIcon size={13} /> Re-layout
             </button>
-            <button type="button" className={toolButton} onClick={() => fitReadable(rf, wrapper.current, { duration: 250 })} title="Fit the diagram to the canvas">
+            <button type="button" className={toolButton} onClick={() => fitReadable(rf, wrapper.current, { duration: 250, nodes: latest.current })} title="Fit the diagram to the canvas">
               <FitIcon size={13} /> Fit
             </button>
             <MapToggle on={showMap} onToggle={() => setMapChoice(!showMap)} />

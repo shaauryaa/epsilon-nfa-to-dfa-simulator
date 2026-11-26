@@ -168,8 +168,8 @@ function DfaTable({ view }: { view: ConvertView }) {
             {progress.states.map((s) => {
               const final = dfa.finals.includes(s)
               return (
-                <tr key={s} className={`border-t border-slate-100 ${live && progress.entering === s ? 'cell-fill' : ''}`}>
-                  <th scope="row" className="px-2 py-1.5 text-left font-normal">
+                <tr key={s} className="border-t border-slate-100">
+                  <th scope="row" className={`px-2 py-1.5 text-left font-normal ${live && progress.entering === s ? 'cell-fill' : ''}`}>
                     <span className="font-mono font-semibold text-slate-900">
                       <span className="inline-block w-3 text-blue-600" aria-label={s === dfa.start ? 'start' : undefined}>
                         {s === dfa.start ? '→' : ''}

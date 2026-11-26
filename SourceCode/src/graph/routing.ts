@@ -77,7 +77,7 @@ function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number,
     const p = quadPoint(start, c, end, t)
     const gap = Math.min(
       ...states.map((o) => Math.hypot(p.x - o.x, p.y - o.y) - r - LABEL_CLEARANCE),
-      ...avoid.map((o) => Math.hypot((p.x - o.x) / 2.2, p.y - o.y) - LABEL_CLEARANCE),
+      ...avoid.map((o) => Math.hypot((p.x - o.x) / 4, p.y - o.y) - LABEL_CLEARANCE),
     )
     if (gap >= 0) return p
     if (gap > bestGap) {
