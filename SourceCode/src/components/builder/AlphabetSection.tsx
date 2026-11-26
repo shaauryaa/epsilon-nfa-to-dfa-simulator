@@ -4,6 +4,7 @@ import { useApp } from '../../store/automaton'
 import { toast } from '../../store/toasts'
 import { CloseIcon, PlusIcon, SigmaIcon } from '../ui/Icons'
 import { Popover } from '../ui/Popover'
+import { Tooltip } from '../ui/Tooltip'
 import { NameEditor } from './NameEditor'
 import { Section, fieldClass } from './Section'
 
@@ -95,14 +96,16 @@ export function AlphabetSection() {
           <SymbolChip key={`${a}-${i}`} symbol={a} invalid={bad.has(a)} />
         ))}
         <li>
-          <span
-            data-focus="eps"
-            tabIndex={-1}
-            title="ε (empty move) is always available; it is not part of Σ"
-            className="inline-flex h-7 items-center rounded-md border border-dashed border-violet-300 bg-violet-50 px-2 font-mono text-xs font-semibold text-violet-700 outline-none"
-          >
-            ε
-          </span>
+          <Tooltip content="ε (empty move, not in Σ)">
+            <span
+              data-focus="eps"
+              tabIndex={-1}
+              aria-label="ε (empty move, not in Σ)"
+              className="inline-flex h-7 cursor-help items-center rounded-md border border-dashed border-violet-300 bg-violet-50 px-2 font-mono text-xs font-semibold text-violet-700 outline-none"
+            >
+              ε
+            </span>
+          </Tooltip>
         </li>
       </ul>
       <form onSubmit={submit} className="mt-3">

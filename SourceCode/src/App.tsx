@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { ReactFlowProvider } from 'reactflow'
 import { BottomPanel } from './components/BottomPanel'
 import { LeftSidebar } from './components/builder/LeftSidebar'
 import { GraphView } from './components/canvas/GraphView'
+import { ConvertCanvas } from './components/convert/ConvertCanvas'
 import { AboutDialog, DocsDialog } from './components/InfoDialogs'
 import { RightSidebar } from './components/inspector/RightSidebar'
 import { Navbar } from './components/Navbar'
+import { SidebarIcon } from './components/ui/Icons'
 import { Toaster } from './components/ui/Toaster'
 import { TABS, useApp } from './store/automaton'
 import { toast } from './store/toasts'
@@ -33,6 +35,27 @@ function useHistoryShortcuts() {
   }, [])
 }
 
+/** Below this window width the builder starts collapsed in Convert mode, to give the two canvases room. */
+const WIDE = 1600
+
+/** The collapsed builder: a slim rail with a button to open it again. */
+function BuilderRail({ onOpen }: { onOpen: () => void }) {
+  return (
+    <aside aria-label="Builder (collapsed)" className="flex w-[var(--left-w)] shrink-0 flex-col items-center border-r border-slate-200 bg-white py-3">
+      <button
+        type="button"
+        onClick={onOpen}
+        title="Show the builder"
+        aria-label="Show the builder"
+        className="press rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-500"
+      >
+        <SidebarIcon size={16} />
+      </button>
+      <span className="mt-3 text-[11px] font-semibold tracking-wider text-slate-500 uppercase [writing-mode:vertical-rl]">Builder</span>
+    </aside>
+  )
+}
+
 /**
  * The workspace: navbar on top; below it the builder (left), the canvas with
  * the timeline under it (centre) and the inspector (right). The page itself
@@ -44,19 +67,30 @@ function App() {
   const openDocs = useCallback(() => setDialog('docs'), [])
   const openAbout = useCallback(() => setDialog('about'), [])
   const close = useCallback(() => setDialog(null), [])
+  const [builderChoice, setBuilderChoice] = useState<boolean | null>(null)
   useHistoryShortcuts()
+  const convert = tab === 'convert'
+  const builderOpen = !convert || (builderChoice ?? window.innerWidth >= WIDE)
+  const geometry = {
+    '--left-w': builderOpen ? '360px' : '44px',
+    '--right-w': convert ? '384px' : '320px',
+  } as CSSProperties
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-slate-50 text-slate-900">
+    <div className="flex h-full flex-col overflow-hidden bg-slate-50 text-slate-900" style={geometry}>
       <Navbar onDocs={openDocs} onAbout={openAbout} />
       <main id="workspace" role="tabpanel" aria-labelledby={`tab-${tab}`} className="flex min-h-0 flex-1 overflow-hidden">
         <h2 className="sr-only">{TABS.find((t) => t.id === tab)?.label}</h2>
-        <LeftSidebar />
+        {builderOpen ? <LeftSidebar onCollapse={convert ? () => setBuilderChoice(false) : undefined} /> : <BuilderRail onOpen={() => setBuilderChoice(true)} />}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <section aria-label="State diagram" className="min-h-0 flex-1">
-            <ReactFlowProvider>
-              <GraphView />
-            </ReactFlowProvider>
+          <section aria-label={convert ? 'ε-NFA and DFA diagrams' : 'State diagram'} className="min-h-0 flex-1">
+            {convert ? (
+              <ConvertCanvas />
+            ) : (
+              <ReactFlowProvider>
+                <GraphView />
+              </ReactFlowProvider>
+            )}
           </section>
           <BottomPanel />
         </div>

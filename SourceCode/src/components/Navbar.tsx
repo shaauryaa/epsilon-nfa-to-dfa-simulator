@@ -4,6 +4,7 @@ import { presets, type Preset } from '../presets'
 import { blankENFA } from '../model/edits'
 import { TABS, useApp } from '../store/automaton'
 import { toast } from '../store/toasts'
+import { DownloadMenu } from './DownloadMenu'
 import {
   BookIcon,
   ChevronIcon,
@@ -226,6 +227,8 @@ export function Navbar({ onDocs, onAbout }: { onDocs: () => void; onAbout: () =>
         <NavButton compact icon={<DownloadIcon size={15} />} label="Export" title="Download this machine as JSON" onClick={onExport} />
         <NavButton compact icon={<FileIcon size={15} />} label="New" title="Start from a blank machine" onClick={onNew} />
       </div>
+      <div aria-hidden="true" className="h-6 w-px bg-slate-200" />
+      <DownloadMenu />
       <div aria-hidden="true" className="h-6 w-px bg-slate-200" />
       <div className="flex items-center gap-0.5">
         <NavButton icon={<BookIcon size={15} />} label="Docs" onClick={onDocs} />

@@ -1,6 +1,8 @@
 /**
  * Edge geometry for automaton graphs: trims edges to the state circles,
- * bends edges around other states, and draws self-loops.
+ * bends edges around other states, draws self-loops, keeps an ε-edge apart
+ * from a symbol edge between the same states, and places labels where they
+ * do not cover a state.
  */
 
 import type { XY } from './layout'
@@ -22,9 +24,20 @@ export interface RouteInput {
   obstacles: readonly XY[]
   /** Circle radius. */
   radius: number
+  /**
+   * Which of two parallel edges between the same states this is: `0` for the
+   * only edge, `1` for the symbol edge of a pair, `2` for the ε-edge of a
+   * pair. Lanes 1 and 2 bend to opposite sides (a lane-2 self-loop hangs
+   * below the state instead of above it).
+   */
+  lane?: 0 | 1 | 2
+  /** Extra points labels should keep clear of (e.g. captions under states). */
+  labelAvoid?: readonly XY[]
 }
 
 const CLEARANCE = 10
+/** Labels keep at least this far from any state's centre, beyond its radius. */
+const LABEL_CLEARANCE = 14
 
 function quadPoint(a: XY, c: XY, b: XY, t: number): XY {
   const u = 1 - t
@@ -40,14 +53,51 @@ function towards(from: XY, to: XY, distance: number): XY {
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
+function candidateOffsets(hasReverse: boolean, lane: 0 | 1 | 2): number[] {
+  if (!hasReverse) {
+    if (lane === 1) return [-26, -56, -90, -140, -200]
+    if (lane === 2) return [26, 56, 90, 140, 200]
+    return [0, 48, -48, 90, -90, 140, -140, 200, -200]
+  }
+  if (lane === 1) return [24, 50, 90, 130, 180]
+  if (lane === 2) return [64, 100, 140, 190, 240]
+  return [28, 56, 90, 130, 180]
+}
+
+/**
+ * Picks the point along a quadratic curve for a label: the middle if it is
+ * clear of every state, otherwise the nearest position along the edge that
+ * is, so a label never sits on top of a state circle.
+ */
+function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number, avoid: readonly XY[] = []): XY {
+  const ts = [0.5, 0.42, 0.58, 0.34, 0.66, 0.27, 0.73, 0.2, 0.8]
+  let best = quadPoint(start, c, end, 0.5)
+  let bestGap = -Infinity
+  for (const t of ts) {
+    const p = quadPoint(start, c, end, t)
+    const gap = Math.min(
+      ...states.map((o) => Math.hypot(p.x - o.x, p.y - o.y) - r - LABEL_CLEARANCE),
+      ...avoid.map((o) => Math.hypot((p.x - o.x) / 2.2, p.y - o.y) - LABEL_CLEARANCE),
+    )
+    if (gap >= 0) return p
+    if (gap > bestGap) {
+      bestGap = gap
+      best = p
+    }
+  }
+  return best
+}
+
 /**
  * Routes one edge.
  *
- * A self-loop is a cubic arc above the state. Other edges are quadratic
- * curves whose bend is the smallest offset that keeps the curve clear of
- * every other state; an edge with a reverse partner always bends so the two
- * directions do not overlap (the normal flips with direction, so both bend
- * to their own side).
+ * A self-loop is a cubic arc above the state (below it for lane 2). Other
+ * edges are quadratic curves whose bend is the smallest offset that keeps
+ * the curve clear of every other state; an edge with a reverse partner
+ * always bends so the two directions do not overlap (the normal flips with
+ * direction, so both bend to their own side), and the two lanes of a
+ * symbol/ε pair bend apart. The label sits at the curve's middle, or slides
+ * along the curve until it clears every state circle.
  *
  * @param input - See {@link RouteInput}.
  * @returns The SVG path and label position.
@@ -55,14 +105,16 @@ const r1 = (n: number) => Math.round(n * 10) / 10
  */
 export function routeEdge(input: RouteInput): Route {
   const { source: s, target: t, radius: r } = input
+  const lane = input.lane ?? 0
   if (input.loop) {
-    const a1 = (-120 * Math.PI) / 180
-    const a2 = (-60 * Math.PI) / 180
+    const dir = lane === 2 ? 1 : -1
+    const a1 = (dir * 120 * Math.PI) / 180
+    const a2 = (dir * 60 * Math.PI) / 180
     const p1 = { x: s.x + r * Math.cos(a1), y: s.y + r * Math.sin(a1) }
     const p2 = { x: s.x + r * Math.cos(a2), y: s.y + r * Math.sin(a2) }
-    const h = r * 1.9
-    const path = `M ${r1(p1.x)} ${r1(p1.y)} C ${r1(p1.x - r * 0.9)} ${r1(p1.y - h)} ${r1(p2.x + r * 0.9)} ${r1(p2.y - h)} ${r1(p2.x)} ${r1(p2.y)}`
-    return { path, labelX: r1(s.x), labelY: r1(s.y - r - h * 0.75) }
+    const h = r * 1.9 * dir
+    const path = `M ${r1(p1.x)} ${r1(p1.y)} C ${r1(p1.x - r * 0.9)} ${r1(p1.y + h)} ${r1(p2.x + r * 0.9)} ${r1(p2.y + h)} ${r1(p2.x)} ${r1(p2.y)}`
+    return { path, labelX: r1(s.x), labelY: r1(s.y + dir * r + h * 0.75) }
   }
 
   const dx = t.x - s.x
@@ -70,7 +122,7 @@ export function routeEdge(input: RouteInput): Route {
   const len = Math.hypot(dx, dy) || 1
   const normal = { x: -dy / len, y: dx / len }
   const mid = { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 }
-  const candidates = input.hasReverse ? [28, 56, 90, 130, 180] : [0, 48, -48, 90, -90, 140, -140, 200, -200]
+  const candidates = candidateOffsets(input.hasReverse, lane)
 
   const clear = (offset: number) => {
     const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
@@ -85,10 +137,51 @@ export function routeEdge(input: RouteInput): Route {
   const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
   const start = towards(s, offset === 0 ? t : c, r)
   const end = towards(t, offset === 0 ? s : c, r + 2)
-  const apex = quadPoint(start, c, end, 0.5)
+  const label = placeLabel(start, c, end, [s, t, ...input.obstacles], r, input.labelAvoid)
   return {
     path: `M ${r1(start.x)} ${r1(start.y)} Q ${r1(c.x)} ${r1(c.y)} ${r1(end.x)} ${r1(end.y)}`,
-    labelX: r1(apex.x),
-    labelY: r1(apex.y),
+    labelX: r1(label.x),
+    labelY: r1(label.y),
   }
+}
+
+/** The edge fields {@link routeAll} needs (a `MergedEdge` has them all). */
+export interface RoutableEdge {
+  id: string
+  source: string
+  target: string
+  loop: boolean
+  hasReverse: boolean
+  hasParallel: boolean
+  epsilonOnly: boolean
+}
+
+/**
+ * Routes every edge around the other states. A symbol edge and an ε-edge
+ * between the same states go in separate lanes so they never overlap.
+ *
+ * @param edges - Edges, e.g. from `mergedEdges`.
+ * @param centres - Circle centre of each state.
+ * @param radius - Circle radius.
+ * @param labelAvoid - Extra points labels keep clear of, such as captions.
+ * @returns Route per edge id; edges with an unknown end are skipped.
+ * @throws Never throws.
+ */
+export function routeAll(
+  edges: readonly RoutableEdge[],
+  centres: ReadonlyMap<string, XY>,
+  radius: number,
+  labelAvoid: readonly XY[] = [],
+): Map<string, Route> {
+  const out = new Map<string, Route>()
+  const all = [...centres.entries()]
+  for (const e of edges) {
+    const source = centres.get(e.source)
+    const target = centres.get(e.target)
+    if (!source || !target) continue
+    const obstacles = all.filter(([id]) => id !== e.source && id !== e.target).map(([, p]) => p)
+    const lane = e.hasParallel ? (e.epsilonOnly ? 2 : 1) : 0
+    out.set(e.id, routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius, lane, labelAvoid }))
+  }
+  return out
 }

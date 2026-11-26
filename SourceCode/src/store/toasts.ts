@@ -25,7 +25,7 @@ const EXIT_MS = 160
 export const TOAST_MS = 3000
 const timers = new Map<number, number>()
 
-/** Toast queue. At most three are visible and a repeated message replaces the old one. */
+/** Toast store. At most one toast is visible: a new toast replaces the current one. */
 export const useToasts = create<ToastState>((set, get) => {
   const arm = (id: number) => {
     window.clearTimeout(timers.get(id))
@@ -38,11 +38,11 @@ export const useToasts = create<ToastState>((set, get) => {
     toasts: [],
     show: (toast) => {
       const id = nextId++
-      const replaced = get().toasts.filter((t) => t.message === toast.message)
-      replaced.forEach((t) => window.clearTimeout(timers.get(t.id)))
-      set((s) => ({
-        toasts: [...s.toasts.filter((t) => !t.leaving && t.message !== toast.message).slice(-2), { ...toast, id }],
-      }))
+      for (const t of get().toasts) {
+        window.clearTimeout(timers.get(t.id))
+        timers.delete(t.id)
+      }
+      set({ toasts: [{ ...toast, id }] })
       arm(id)
     },
     dismiss: (id) => {

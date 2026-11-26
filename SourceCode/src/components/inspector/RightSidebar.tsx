@@ -1,4 +1,5 @@
 import { useApp } from '../../store/automaton'
+import { ConvertPanel } from '../convert/ConvertPanel'
 import { PlaceholderTab } from '../PlaceholderTab'
 import { FormalDefinition } from './FormalDefinition'
 import { Stats } from './Stats'
@@ -15,6 +16,8 @@ export function RightSidebar() {
           <Stats />
           <ValidationPanel />
         </>
+      ) : tab === 'convert' ? (
+        <ConvertPanel />
       ) : (
         <PlaceholderTab tab={tab} />
       )}

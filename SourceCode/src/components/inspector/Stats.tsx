@@ -23,7 +23,7 @@ export function Stats() {
       <dl className="grid grid-cols-2 gap-2">
         <InfoBox label="States" value={nfa.states.length} />
         <InfoBox label="Symbols" value={nfa.alphabet.length} />
-        <InfoBox label="Transitions" value={list.length - eps} />
+        <InfoBox label="Symbol transitions" value={list.length - eps} />
         <InfoBox label="ε-transitions" value={eps} eps />
       </dl>
     </Section>

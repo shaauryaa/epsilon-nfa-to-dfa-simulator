@@ -3,7 +3,6 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
-  MarkerType,
   MiniMap,
   Panel,
   useReactFlow,
@@ -16,20 +15,18 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 import { EPSILON } from '../../core'
 import { NODE_SIZE, type XY } from '../../graph/layout'
-import { routeEdge } from '../../graph/routing'
 import { addState, addTransition, setFinal, setStart } from '../../model/edits'
 import { mergedEdges } from '../../model/graph'
 import { useApp } from '../../store/automaton'
-import { CheckIcon, FitIcon, LayoutIcon, PlusIcon } from '../ui/Icons'
+import { CheckIcon, FitIcon, LayoutIcon, MapIcon, PlusIcon } from '../ui/Icons'
 import { Popover } from '../ui/Popover'
 import { EDGE_COLOR } from './colors'
-import { StateNode, TransitionEdge, type StateNodeData, type TransitionEdgeData } from './graphParts'
+import { arrow, FIT, fitReadable, MINIMAP_MIN_STATES, routeAll } from './flow'
+import { MIN_ZOOM, StateNode, TransitionEdge, type StateNodeData, type TransitionEdgeData } from './graphParts'
 
 const nodeTypes = { state: StateNode }
 const edgeTypes = { transition: TransitionEdge }
 const R = NODE_SIZE / 2
-const FIT = { padding: 0.18, maxZoom: 1.25 }
-const arrow = (color: string) => ({ type: MarkerType.ArrowClosed, width: 14, height: 14, color })
 
 interface PendingTransition {
   source: string
@@ -153,8 +150,37 @@ function Legend() {
   )
 }
 
-const toolButton =
-  'press flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-500'
+export const toolButton =
+  'press flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-500 aria-pressed:bg-slate-100 aria-pressed:text-slate-900'
+
+/** Mini map in the canvas corner, coloured like the states. */
+export function CanvasMiniMap() {
+  return (
+    <MiniMap
+      position="bottom-right"
+      pannable
+      zoomable
+      ariaLabel="Mini map"
+      nodeColor={(n) => {
+        const d = n.data as StateNodeData
+        if (d.final) return '#16a34a'
+        if (d.start) return '#334155'
+        return '#94a3b8'
+      }}
+      maskColor="rgb(15 23 42 / 0.08)"
+      style={{ background: '#fff', width: 160, height: 110 }}
+    />
+  )
+}
+
+/** Toolbar toggle for the mini map. */
+export function MapToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" className={toolButton} aria-pressed={on} onClick={onToggle} title={on ? 'Hide the mini map' : 'Show the mini map'}>
+      <MapIcon size={13} /> Map
+    </button>
+  )
+}
 
 /**
  * Interactive state diagram. Positions come from the store (dagre layout,
@@ -179,6 +205,8 @@ export function GraphView() {
   // Positions while a drag is in progress, and the selection. Everything else comes from the store.
   const [dragging, setDragging] = useState<Record<string, XY>>({})
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [mapChoice, setMapChoice] = useState<boolean | null>(null)
+  const showMap = mapChoice ?? nfa.states.length >= MINIMAP_MIN_STATES
 
   const lit = useMemo(() => {
     if (!hoverCell) return null
@@ -207,11 +235,10 @@ export function GraphView() {
   const merged = useMemo(() => mergedEdges(nfa), [nfa])
   const edges = useMemo<Edge<TransitionEdgeData>[]>(() => {
     const centre = new Map<string, XY>(nodes.map((n) => [n.id, { x: n.position.x + R, y: n.position.y + R }]))
+    const routes = routeAll(merged, centre)
     return merged.flatMap((e) => {
-      const source = centre.get(e.source)
-      const target = centre.get(e.target)
-      if (!source || !target) return []
-      const obstacles = [...centre.entries()].filter(([id]) => id !== e.source && id !== e.target).map(([, p]) => p)
+      const route = routes.get(e.id)
+      if (!route) return []
       const highlight = lit && lit.source === e.source && e.symbols.includes(lit.symbol) ? lit.symbol : null
       const color = highlight ? EDGE_COLOR.highlight : e.epsilonOnly ? EDGE_COLOR.epsilon : EDGE_COLOR.normal
       return [
@@ -223,7 +250,7 @@ export function GraphView() {
           markerEnd: arrow(color),
           zIndex: highlight ? 1 : 0,
           data: {
-            route: routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius: R }),
+            route,
             symbols: e.symbols,
             epsilonOnly: e.epsilonOnly,
             highlight,
@@ -235,7 +262,7 @@ export function GraphView() {
 
   // Re-fit after a preset load, import or re-layout.
   useEffect(() => {
-    const id = requestAnimationFrame(() => rf.fitView(FIT))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current))
     return () => cancelAnimationFrame(id)
   }, [layoutNonce, rf])
 
@@ -252,7 +279,7 @@ export function GraphView() {
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => rf.fitView(FIT))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current))
     })
     ro.observe(el)
     return () => {
@@ -338,28 +365,14 @@ export function GraphView() {
         isValidConnection={() => true}
         connectionLineStyle={{ stroke: EDGE_COLOR.highlight, strokeWidth: 1.6 }}
         deleteKeyCode={null}
-        fitView
-        fitViewOptions={FIT}
-        minZoom={0.25}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current))}
+        minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#cbd5e1" />
-        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} />
-        <MiniMap
-          position="bottom-right"
-          pannable
-          zoomable
-          ariaLabel="Mini map"
-          nodeColor={(n) => {
-            const d = n.data as StateNodeData
-            if (d.final) return '#16a34a'
-            if (d.start) return '#334155'
-            return '#94a3b8'
-          }}
-          maskColor="rgb(15 23 42 / 0.08)"
-          style={{ background: '#fff', width: 160, height: 110 }}
-        />
+        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} onFitView={() => fitReadable(rf, wrapper.current)} />
+        {showMap && <CanvasMiniMap />}
         <Panel position="top-right" className="!m-3">
           <div role="toolbar" aria-label="Canvas" className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
             <button type="button" className={toolButton} onClick={onAddState} title="Add a state (or double-click the canvas)">
@@ -369,9 +382,10 @@ export function GraphView() {
             <button type="button" className={toolButton} onClick={relayout} title="Arrange the states left to right">
               <LayoutIcon size={13} /> Re-layout
             </button>
-            <button type="button" className={toolButton} onClick={() => rf.fitView({ ...FIT, duration: 250 })} title="Fit the diagram to the canvas">
+            <button type="button" className={toolButton} onClick={() => fitReadable(rf, wrapper.current, { duration: 250 })} title="Fit the diagram to the canvas">
               <FitIcon size={13} /> Fit
             </button>
+            <MapToggle on={showMap} onToggle={() => setMapChoice(!showMap)} />
           </div>
         </Panel>
         <Panel position="bottom-left" className="!mb-[15px] !ml-[52px]">

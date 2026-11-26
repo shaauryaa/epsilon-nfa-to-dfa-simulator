@@ -157,3 +157,61 @@ export const ChartIcon = (p: IconProps) => (
     <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
   </Icon>
 )
+export const MapIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+  </Icon>
+)
+export const PlayIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 4.5v15l12-7.5-12-7.5z" fill="currentColor" />
+  </Icon>
+)
+export const PauseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor" />
+  </Icon>
+)
+export const StepForwardIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 5v14l9-7-9-7zM18 5v14" />
+  </Icon>
+)
+export const StepBackIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M18 5v14l-9-7 9-7zM6 5v14" />
+  </Icon>
+)
+export const SkipForwardIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 5v14l7-7-7-7zM12 5v14l7-7-7-7zM21 5v14" />
+  </Icon>
+)
+export const SkipBackIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 5v14l-7-7 7-7zM12 5v14l-7-7 7-7zM3 5v14" />
+  </Icon>
+)
+export const BoltIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+  </Icon>
+)
+export const CodeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16" />
+  </Icon>
+)
+export const ImageIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="m3 16 5-5 4 4 3-3 6 6" />
+    <circle cx="16" cy="9" r="1.5" />
+  </Icon>
+)
+export const SidebarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16" />
+  </Icon>
+)

@@ -12,7 +12,7 @@ const E = EPSILON
 const thompson = getPreset('thompson-abb')!.nfa
 
 describe('mergedEdges', () => {
-  it('merges parallel transitions into one labelled edge', () => {
+  it('merges parallel symbol transitions but keeps ε on its own edge', () => {
     const nfa: ENFA = {
       states: ['p', 'q'],
       alphabet: ['a', 'b'],
@@ -23,12 +23,17 @@ describe('mergedEdges', () => {
     const edges = mergedEdges(nfa)
     expect(edges.map((e) => [e.source, e.target, e.label])).toEqual([
       ['p', 'p', 'a'],
-      ['p', 'q', 'a, b, ε'],
+      ['p', 'q', 'a, b'],
+      ['p', 'q', 'ε'],
       ['q', 'p', 'ε'],
     ])
-    const [loop, pq, qp] = edges
+    const [loop, pq, pqEps, qp] = edges
     expect(loop.loop).toBe(true)
     expect(pq.epsilonOnly).toBe(false)
+    expect(pqEps.epsilonOnly).toBe(true)
+    expect(pq.hasParallel && pqEps.hasParallel).toBe(true)
+    expect(qp.hasParallel).toBe(false)
+    expect(new Set(edges.map((e) => e.id)).size).toBe(edges.length)
     expect(qp.epsilonOnly).toBe(true)
     expect(pq.hasReverse && qp.hasReverse).toBe(true)
   })
@@ -105,6 +110,36 @@ describe('routeEdge', () => {
     const a = routeEdge({ source: { x: 0, y: 0 }, target: { x: 200, y: 0 }, loop: false, hasReverse: true, obstacles: [], radius: r })
     const b = routeEdge({ source: { x: 200, y: 0 }, target: { x: 0, y: 0 }, loop: false, hasReverse: true, obstacles: [], radius: r })
     expect(Math.sign(a.labelY)).toBe(-Math.sign(b.labelY))
+  })
+
+  it('bends the symbol and ε lanes of one pair to opposite sides', () => {
+    const base = { source: { x: 0, y: 0 }, target: { x: 200, y: 0 }, loop: false, hasReverse: false, obstacles: [], radius: r }
+    const sym = routeEdge({ ...base, lane: 1 })
+    const eps = routeEdge({ ...base, lane: 2 })
+    expect(Math.sign(sym.labelY)).toBe(-Math.sign(eps.labelY))
+    expect(sym.path).not.toBe(eps.path)
+  })
+
+  it('hangs a lane-2 self-loop below the state', () => {
+    const route = routeEdge({ source: { x: 50, y: 50 }, target: { x: 50, y: 50 }, loop: true, hasReverse: false, obstacles: [], radius: r, lane: 2 })
+    expect(route.labelY).toBeGreaterThan(50 + r)
+  })
+
+  it('slides a label along the edge so it does not sit on a state', () => {
+    // A state just beside the chord's midpoint, close enough to touch a centred label.
+    const obstacle = { x: 150, y: 46 }
+    const route = routeEdge({ source: { x: 0, y: 0 }, target: { x: 300, y: 0 }, loop: false, hasReverse: false, obstacles: [obstacle], radius: r })
+    expect(Math.hypot(route.labelX - obstacle.x, route.labelY - obstacle.y)).toBeGreaterThanOrEqual(r + 14)
+  })
+
+  it('keeps every Thompson label clear of every state after layout', () => {
+    const pos = layoutLR(thompson.states, mergedEdges(thompson))
+    const centre = (s: string) => ({ x: pos[s].x + r, y: pos[s].y + r })
+    for (const e of mergedEdges(thompson)) {
+      const others = thompson.states.filter((s) => s !== e.source && s !== e.target).map(centre)
+      const route = routeEdge({ source: centre(e.source), target: centre(e.target), loop: e.loop, hasReverse: e.hasReverse, obstacles: others, radius: r })
+      for (const s of thompson.states.map(centre)) expect(Math.hypot(route.labelX - s.x, route.labelY - s.y)).toBeGreaterThan(r)
+    }
   })
 
   it('draws a self-loop above the state', () => {

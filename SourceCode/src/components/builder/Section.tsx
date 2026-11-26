@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { ChevronIcon } from '../ui/Icons'
 
 interface SectionProps {
-  title: string
+  title: ReactNode
   icon?: ReactNode
   /** Small text after the title, such as a count. */
   meta?: ReactNode

@@ -1,0 +1,199 @@
+/**
+ * Builds the "full report" PDF: the input ε-NFA (5-tuple, table, diagram),
+ * the ε-closure table, every subset-construction step, the DFA table and
+ * diagram, and the subset-to-name mapping. jsPDF, the table plugin and the
+ * Unicode font are loaded only when a report is requested.
+ */
+
+import { EPSILON, formatSet, type ENFA, type SubsetResult } from '../core'
+import type { Diagram } from '../model/svg'
+import { blobToDataURL, svgToPng } from './download'
+
+/** Everything the report shows. */
+export interface ReportInput {
+  name: string
+  nfa: ENFA
+  closures: Record<string, string[]>
+  result: SubsetResult
+  nfaDiagram: Diagram
+  dfaDiagram: Diagram
+  when: Date
+}
+
+async function fontBase64(url: string): Promise<string> {
+  const buf = await (await fetch(url)).arrayBuffer()
+  let bin = ''
+  const bytes = new Uint8Array(buf)
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+
+/**
+ * Renders the report.
+ *
+ * @param input - See {@link ReportInput}.
+ * @returns The PDF as a blob.
+ * @throws If a library, the font or a diagram fails to load.
+ */
+export async function buildReport(input: ReportInput): Promise<Blob> {
+  const [{ jsPDF }, { autoTable }, regularUrl, boldUrl] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+    import('dejavu-fonts-ttf/ttf/DejaVuSans.ttf?url').then((m) => m.default as string),
+    import('dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf?url').then((m) => m.default as string),
+  ])
+  const [regular, bold, nfaPng, dfaPng] = await Promise.all([
+    fontBase64(regularUrl),
+    fontBase64(boldUrl),
+    svgToPng(input.nfaDiagram.svg, input.nfaDiagram.width, input.nfaDiagram.height).then(blobToDataURL),
+    svgToPng(input.dfaDiagram.svg, input.dfaDiagram.width, input.dfaDiagram.height).then(blobToDataURL),
+  ])
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
+  doc.addFileToVFS('DejaVuSans.ttf', regular)
+  doc.addFont('DejaVuSans.ttf', 'DejaVu', 'normal')
+  doc.addFileToVFS('DejaVuSans-Bold.ttf', bold)
+  doc.addFont('DejaVuSans-Bold.ttf', 'DejaVu', 'bold')
+  doc.setFont('DejaVu', 'normal')
+
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+  const M = 48
+  let y = M
+
+  const ensure = (h: number) => {
+    if (y + h > pageH - M) {
+      doc.addPage()
+      y = M
+    }
+  }
+  const heading = (text: string) => {
+    ensure(40)
+    doc.setFont('DejaVu', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(15, 23, 42)
+    doc.text(text, M, y)
+    y += 20
+    doc.setFont('DejaVu', 'normal')
+  }
+  const para = (text: string, size = 10) => {
+    doc.setFontSize(size)
+    doc.setTextColor(51, 65, 85)
+    const lines = doc.splitTextToSize(text, pageW - 2 * M) as string[]
+    ensure(lines.length * size * 1.4)
+    doc.text(lines, M, y)
+    y += lines.length * size * 1.4 + 6
+  }
+  const table = (head: string[], body: string[][]) => {
+    autoTable(doc, {
+      head: [head],
+      body,
+      startY: y,
+      margin: { left: M, right: M },
+      styles: { font: 'DejaVu', fontSize: 9, cellPadding: 4, textColor: [15, 23, 42] },
+      headStyles: { font: 'DejaVu', fontStyle: 'bold', fillColor: [241, 245, 249], textColor: [15, 23, 42] },
+      theme: 'grid',
+    })
+    y = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 18
+  }
+  const image = (dataUrl: string, d: Diagram) => {
+    const maxW = pageW - 2 * M
+    const maxH = pageH - 2 * M - 20
+    const scale = Math.min(maxW / d.width, maxH / d.height, 1)
+    const w = d.width * scale
+    const h = d.height * scale
+    ensure(h + 10)
+    doc.addImage(dataUrl, 'PNG', M, y, w, h)
+    y += h + 18
+  }
+
+  const { nfa, result, closures } = input
+  const { dfa, steps, stats } = result
+  const syms = [...nfa.alphabet, EPSILON]
+
+  doc.setFont('DejaVu', 'bold')
+  doc.setFontSize(20)
+  doc.setTextColor(15, 23, 42)
+  doc.text('ε-NFA → DFA conversion report', M, y)
+  y += 22
+  para(`Machine: ${input.name} · Generated ${input.when.toLocaleString()}`, 10)
+  y += 6
+
+  heading('1. Input ε-NFA')
+  para(
+    [
+      `Q = ${formatSet(nfa.states)}`,
+      `Σ = {${nfa.alphabet.join(', ')}}`,
+      `q0 = ${nfa.start}`,
+      `F = ${formatSet(nfa.finals)}`,
+      'δ is given by the transition table below (ε-moves in the last column).',
+    ].join('\n'),
+    10,
+  )
+  table(
+    ['State', ...syms],
+    nfa.states.map((s) => [
+      `${s === nfa.start ? '→ ' : ''}${nfa.finals.includes(s) ? '* ' : ''}${s}`,
+      ...syms.map((a) => {
+        const t = nfa.transitions[s]?.[a]
+        return t && t.length > 0 ? formatSet(t) : '∅'
+      }),
+    ]),
+  )
+  image(nfaPng, input.nfaDiagram)
+
+  heading('2. ε-closures')
+  table(
+    ['State', 'ε-closure'],
+    nfa.states.map((s) => [s, formatSet(closures[s] ?? [])]),
+  )
+
+  heading('3. Subset construction steps')
+  table(
+    ['#', 'From', 'Symbol', 'move', 'ε-closure', 'To'],
+    steps.map((s) => [
+      String(s.index + 1),
+      s.kind === 'start' ? 'start' : s.kind === 'done' ? 'done' : `${s.from} = ${formatSet(s.fromSet ?? [])}`,
+      s.symbol ?? '',
+      s.moveSet ? formatSet(s.moveSet) : s.kind === 'start' ? `{${nfa.start}}` : '',
+      s.kind === 'done' ? '' : formatSet(s.closureSet),
+      s.to === null ? (s.kind === 'done' ? '' : '— (none)') : `${s.to}${s.isNew ? ' (new)' : ''}`,
+    ]),
+  )
+  for (const s of steps) para(`${s.index + 1}. ${s.explanation}`, 9)
+  y += 6
+
+  heading('4. Resulting DFA')
+  para(
+    `${stats.dfaStates} DFA states from ${stats.nfaStates} NFA states (bound 2^${stats.nfaStates} = ${stats.upperBound}). Start ${dfa.start}; final ${
+      dfa.finals.length > 0 ? dfa.finals.join(', ') : 'none'
+    }.${dfa.deadState ? ' ∅ is the dead state.' : ' No dead state is shown, so missing moves reject.'}`,
+  )
+  table(
+    ['State', ...dfa.alphabet],
+    dfa.states.map((s) => [
+      `${s === dfa.start ? '→ ' : ''}${dfa.finals.includes(s) ? '* ' : ''}${s}`,
+      ...dfa.alphabet.map((a) => dfa.transitions[s]?.[a] ?? '—'),
+    ]),
+  )
+  image(dfaPng, input.dfaDiagram)
+
+  heading('5. Subset-to-name mapping')
+  table(
+    ['DFA state', 'NFA states', 'Role'],
+    dfa.states.map((s) => [
+      s,
+      formatSet(dfa.subsets[s] ?? []),
+      [s === dfa.start ? 'start' : '', dfa.finals.includes(s) ? 'final' : '', s === dfa.deadState ? 'dead' : ''].filter(Boolean).join(', '),
+    ]),
+  )
+
+  const pages = doc.getNumberOfPages()
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(100, 116, 139)
+    doc.text(`${input.name} · page ${i} of ${pages}`, pageW - M, pageH - 24, { align: 'right' })
+  }
+  return doc.output('blob')
+}
