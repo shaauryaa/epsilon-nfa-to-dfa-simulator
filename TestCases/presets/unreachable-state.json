@@ -1,0 +1,55 @@
+{
+  "id": "unreachable-state",
+  "name": "Unreachable state",
+  "description": "Accepts ab*. State q2 has outgoing edges but nothing leads to it, so it never appears in the DFA.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "alphabet": [
+    "a",
+    "b"
+  ],
+  "start": "q0",
+  "finals": [
+    "q1"
+  ],
+  "transitions": {
+    "q0": {
+      "a": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "b": [
+        "q1"
+      ]
+    },
+    "q2": {
+      "a": [
+        "q1"
+      ],
+      "ε": [
+        "q0"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "a",
+      "ab",
+      "abb"
+    ],
+    "rejects": [
+      "",
+      "b",
+      "aa",
+      "ba",
+      "aba"
+    ]
+  },
+  "expectedDfaStates": 3
+}

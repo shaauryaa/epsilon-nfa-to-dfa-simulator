@@ -1,0 +1,54 @@
+{
+  "id": "epsilon-to-final",
+  "name": "ε path to a final state",
+  "description": "Optional a followed by optional b, (a|ε)(b|ε). The start state reaches the final state by ε moves alone, so the empty string is accepted.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "alphabet": [
+    "a",
+    "b"
+  ],
+  "start": "q0",
+  "finals": [
+    "q2"
+  ],
+  "transitions": {
+    "q0": {
+      "a": [
+        "q1"
+      ],
+      "ε": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "b": [
+        "q2"
+      ],
+      "ε": [
+        "q2"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "",
+      "a",
+      "b",
+      "ab"
+    ],
+    "rejects": [
+      "aa",
+      "ba",
+      "bb",
+      "abb",
+      "aab"
+    ]
+  },
+  "expectedDfaStates": 4
+}

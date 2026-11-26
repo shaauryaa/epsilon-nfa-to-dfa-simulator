@@ -11,6 +11,10 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
-    passWithNoTests: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/core/**/*.ts', 'src/presets/**/*.ts'],
+      reporter: ['text-summary', 'text', 'html'],
+    },
   },
 })

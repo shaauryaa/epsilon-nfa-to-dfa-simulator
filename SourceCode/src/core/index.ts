@@ -1,0 +1,9 @@
+/** Public entry point of the automata core. */
+export * from './types'
+export * from './sets'
+export * from './automaton'
+export * from './closure'
+export * from './subset'
+export * from './minimize'
+export * from './simulate'
+export * from './equivalence'

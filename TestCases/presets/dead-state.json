@@ -1,0 +1,47 @@
+{
+  "id": "dead-state",
+  "name": "Missing transitions (dead state ∅)",
+  "description": "Accepts exactly \"ab\". Most transitions are missing, so subset construction produces the dead state ∅.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "alphabet": [
+    "a",
+    "b"
+  ],
+  "start": "q0",
+  "finals": [
+    "q2"
+  ],
+  "transitions": {
+    "q0": {
+      "a": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "b": [
+        "q2"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "ab"
+    ],
+    "rejects": [
+      "",
+      "a",
+      "b",
+      "aa",
+      "ba",
+      "abb",
+      "aba"
+    ]
+  },
+  "expectedDfaStates": 4
+}

@@ -1,0 +1,67 @@
+{
+  "id": "a-star-b-star-c-star",
+  "name": "a*b*c* with an ε chain",
+  "description": "q0 loops on a, q1 on b, q2 on c, joined by q0 ε→ q1 ε→ q2. The final state q2 is ε-reachable from every state.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "alphabet": [
+    "a",
+    "b",
+    "c"
+  ],
+  "start": "q0",
+  "finals": [
+    "q2"
+  ],
+  "transitions": {
+    "q0": {
+      "a": [
+        "q0"
+      ],
+      "ε": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "b": [
+        "q1"
+      ],
+      "ε": [
+        "q2"
+      ]
+    },
+    "q2": {
+      "c": [
+        "q2"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "",
+      "a",
+      "b",
+      "c",
+      "abc",
+      "aabbcc",
+      "ac",
+      "bc",
+      "aaa",
+      "ccc"
+    ],
+    "rejects": [
+      "ba",
+      "cb",
+      "ca",
+      "abca",
+      "acb",
+      "cba"
+    ]
+  },
+  "expectedDfaStates": 4
+}

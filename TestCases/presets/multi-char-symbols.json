@@ -1,0 +1,54 @@
+{
+  "id": "multi-char-symbols",
+  "name": "Multi-character symbols",
+  "description": "Alphabet {if, x}: accepts one or more repetitions of \"if x\". Input is split by longest match, with or without spaces.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2"
+  ],
+  "alphabet": [
+    "if",
+    "x"
+  ],
+  "start": "q0",
+  "finals": [
+    "q2"
+  ],
+  "transitions": {
+    "q0": {
+      "if": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "x": [
+        "q2"
+      ]
+    },
+    "q2": {
+      "ε": [
+        "q0"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "ifx",
+      "if x",
+      "ifxifx",
+      "if x if x"
+    ],
+    "rejects": [
+      "",
+      "if",
+      "x",
+      "ifif",
+      "xif",
+      "ifxx"
+    ]
+  },
+  "expectedDfaStates": 4
+}

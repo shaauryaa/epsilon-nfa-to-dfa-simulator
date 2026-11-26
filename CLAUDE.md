@@ -1,5 +1,20 @@
 # Project rules
 
+## Hard rules
+
+- Commit locally only. NEVER run `git push`, create tags or releases, or change
+  anything on GitHub without the owner's explicit approval in the chat for that
+  specific push.
+- NEVER put Claude, Claude Code, Anthropic, `Co-Authored-By` lines,
+  "Generated with" footers or session links in any commit message, tag,
+  release, PR, code comment or file. Commits show only `shauryaa`.
+- At the end of each task, show `git log --format=full` for the new commits and
+  ask whether to push.
+- Work in `SourceCode/`. All algorithm code is pure TypeScript in `src/core`
+  with no React imports.
+- Every exported function gets a TSDoc comment: purpose, `@param`, `@returns`,
+  `@throws`, and the algorithmic assumptions.
+
 ## Attribution (hard rule)
 
 Every commit, tag, release, pull request and file in this repository must show

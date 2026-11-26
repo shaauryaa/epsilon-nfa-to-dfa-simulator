@@ -1,0 +1,65 @@
+{
+  "id": "epsilon-cycle",
+  "name": "ε-cycle",
+  "description": "q0 ε→ q1 ε→ q2 ε→ q0 forms a cycle, so all three share one ε-closure. Accepts strings over {a,b} ending in b.",
+  "format": "enfa",
+  "version": 1,
+  "states": [
+    "q0",
+    "q1",
+    "q2",
+    "q3"
+  ],
+  "alphabet": [
+    "a",
+    "b"
+  ],
+  "start": "q0",
+  "finals": [
+    "q3"
+  ],
+  "transitions": {
+    "q0": {
+      "a": [
+        "q0"
+      ],
+      "ε": [
+        "q1"
+      ]
+    },
+    "q1": {
+      "b": [
+        "q1"
+      ],
+      "ε": [
+        "q2"
+      ]
+    },
+    "q2": {
+      "b": [
+        "q3"
+      ],
+      "ε": [
+        "q0"
+      ]
+    }
+  },
+  "expected": {
+    "accepts": [
+      "b",
+      "ab",
+      "bb",
+      "aab",
+      "abab",
+      "bbb"
+    ],
+    "rejects": [
+      "",
+      "a",
+      "ba",
+      "bba",
+      "aaa"
+    ]
+  },
+  "expectedDfaStates": 2
+}
