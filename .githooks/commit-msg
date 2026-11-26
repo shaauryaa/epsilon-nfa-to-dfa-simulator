@@ -1,0 +1,9 @@
+#!/bin/sh
+# Rejects commit messages containing third-party attribution.
+# Enable with: git config core.hooksPath .githooks
+if grep -qiE 'co-authored-by|claude|anthropic|claude\.ai' "$1"; then
+  echo "commit-msg hook: message contains a forbidden attribution term" >&2
+  echo "(Co-Authored-By, Claude, Anthropic or claude.ai). Commit rejected." >&2
+  exit 1
+fi
+exit 0
