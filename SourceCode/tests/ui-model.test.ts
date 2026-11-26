@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { EPSILON, toText, validateENFA, type ENFA } from '../src/core'
 import { layoutLR, NODE_SIZE } from '../src/graph/layout'
 import { routeEdge } from '../src/graph/routing'
-import { mergedEdges } from '../src/model/graph'
-import { findLine, focusTargetFor } from '../src/model/issues'
+import { listTransitions, mergedEdges } from '../src/model/graph'
+import { findLine, focusKey, focusTargetFor } from '../src/model/issues'
 import { getPreset, presets } from '../src/presets'
 import { validationCases } from '../src/presets/validation'
 import { derive } from '../src/store/derive'
@@ -42,6 +42,33 @@ describe('mergedEdges', () => {
     const edges = mergedEdges(thompson)
     expect(edges).toHaveLength(13)
     expect(edges.filter((e) => e.epsilonOnly)).toHaveLength(8)
+  })
+})
+
+describe('listTransitions', () => {
+  it('lists one triple per target, alphabet order then ε', () => {
+    const nfa: ENFA = {
+      states: ['p', 'q'],
+      alphabet: ['a', 'b'],
+      start: 'p',
+      finals: ['q'],
+      transitions: { q: { [E]: ['p'] }, p: { [E]: ['q'], b: ['q'], a: ['p', 'q'] } },
+    }
+    expect(listTransitions(nfa).map((t) => `${t.from} ${t.symbol} ${t.to}`)).toEqual(['p a p', 'p a q', 'p b q', 'p ε q', 'q ε p'])
+  })
+
+  it('counts the Thompson preset: 13 transitions, 8 of them ε', () => {
+    const list = listTransitions(thompson)
+    expect(list).toHaveLength(13)
+    expect(list.filter((t) => t.symbol === E)).toHaveLength(8)
+  })
+
+  it('keeps undeclared sources and symbols visible', () => {
+    const nfa: ENFA = { states: ['p'], alphabet: ['a'], start: 'p', finals: [], transitions: { zz: { a: ['p'] }, p: { c: ['p'] } } }
+    expect(listTransitions(nfa)).toEqual([
+      { from: 'p', symbol: 'c', to: 'p' },
+      { from: 'zz', symbol: 'a', to: 'p' },
+    ])
   })
 })
 
@@ -110,6 +137,16 @@ describe('focusTargetFor', () => {
     const target = focusTargetFor(issue, c.nfa, text)
     expect(target.kind).toBe('text')
     if (target.kind === 'text') expect(text.split('\n')[target.line - 1]).toMatch(/^q9 a ->/)
+  })
+
+  it('points start and final problems at their builder controls', () => {
+    for (const code of ['NO_START', 'NO_FINALS'] as const) {
+      const c = validationCases.find((v) => v.code === code)!
+      const v = validateENFA(c.nfa)
+      const issue = [...v.errors, ...v.warnings].find((i) => i.code === code)!
+      const target = focusTargetFor(issue, c.nfa, toText(c.nfa))
+      expect(focusKey(target)).toBe(code === 'NO_START' ? 'start' : 'final')
+    }
   })
 
   it('findLine ignores comments and defaults to line 1', () => {

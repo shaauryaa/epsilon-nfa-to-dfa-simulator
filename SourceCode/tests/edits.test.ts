@@ -9,14 +9,18 @@ import {
   cloneENFA,
   deleteState,
   deleteSymbol,
+  formatTargets,
   nextStateName,
   nextSymbolName,
+  parseSymbols,
   parseTargets,
+  removeTransition,
   renameState,
   renameSymbol,
   setFinal,
   setStart,
   setTargets,
+  toggleTarget,
 } from '../src/model/edits'
 import { getPreset } from '../src/presets'
 
@@ -165,5 +169,49 @@ describe('blankENFA', () => {
     const v = validateENFA(blankENFA())
     expect(v.errors).toEqual([])
     expect(v.warnings.map((w) => w.code)).toEqual(['NO_FINALS', 'NO_EPSILON'])
+  })
+})
+
+describe('single-transition edits', () => {
+  it('removeTransition drops one target and prunes empty cells', () => {
+    const out = removeTransition(sample(), 'q1', 'b', 'q2')
+    expect(out.transitions.q1).toBeUndefined()
+    const kept = removeTransition(sample(), 'q0', 'a', 'q1')
+    expect(kept.transitions.q0.a).toEqual(['q0'])
+    expect(removeTransition(sample(), 'q0', 'b', 'q1')).toEqual(sample())
+  })
+
+  it('toggleTarget adds in declaration order and removes on a second toggle', () => {
+    const base = setTargets(sample(), 'q2', 'b', ['q2'])
+    const added = toggleTarget(base, 'q2', 'b', 'q0')
+    expect(added.transitions.q2.b).toEqual(['q0', 'q2'])
+    expect(toggleTarget(added, 'q2', 'b', 'q0').transitions.q2.b).toEqual(['q2'])
+  })
+
+  it('toggleTarget keeps undeclared targets at the end', () => {
+    const base = setTargets(sample(), 'q1', 'a', ['zz'])
+    expect(toggleTarget(base, 'q1', 'a', 'q0').transitions.q1.a).toEqual(['q0', 'zz'])
+  })
+})
+
+describe('parseSymbols', () => {
+  it('splits a,b and maps ε keywords to ε', () => {
+    expect(parseSymbols('a, b a', ['a', 'b'])).toEqual(['a', 'b'])
+    expect(parseSymbols('eps', ['a'])).toEqual([E])
+    expect(parseSymbols('ε,epsilon', ['a'])).toEqual([E])
+    expect(parseSymbols('  ', ['a'])).toEqual([])
+  })
+
+  it('treats a keyword that is in the alphabet as a symbol', () => {
+    expect(parseSymbols('e', ['e'])).toEqual(['e'])
+    expect(parseSymbols('e', ['a'])).toEqual([E])
+  })
+})
+
+describe('formatTargets', () => {
+  it('writes sets with spaces and ∅ for empty', () => {
+    expect(formatTargets(['1', '7'])).toBe('{1, 7}')
+    expect(formatTargets([])).toBe('∅')
+    expect(formatTargets(undefined)).toBe('∅')
   })
 })

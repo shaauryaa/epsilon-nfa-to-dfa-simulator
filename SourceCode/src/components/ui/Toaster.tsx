@@ -1,31 +1,39 @@
 import { useToasts } from '../../store/toasts'
-import { AlertIcon, CheckIcon, CloseIcon } from './Icons'
+import { AlertIcon, CheckIcon, CloseIcon, InfoIcon } from './Icons'
 
-/** Renders the toast stack at the bottom centre of the window. */
+/**
+ * Renders the toast stack at the top centre of the canvas column, below the
+ * canvas toolbar so it never covers the canvas controls.
+ */
 export function Toaster() {
-  const { toasts, dismiss } = useToasts()
+  const { toasts, dismiss, hold, release } = useToasts()
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed z-50 flex flex-col items-center gap-2 px-4"
+      style={{ top: 'calc(var(--nav-h) + 60px)', left: 'var(--left-w)', right: 'var(--right-w)' }}
     >
       {toasts.map((t) => (
         <div
           key={t.id}
           data-leaving={t.leaving ? 'true' : 'false'}
           role={t.tone === 'error' ? 'alert' : 'status'}
-          className="toast pointer-events-auto flex max-w-[min(32rem,100%)] items-center gap-3 rounded-xl bg-slate-900 py-2.5 pr-2 pl-3.5 text-sm text-white shadow-lg shadow-slate-900/20"
+          onMouseEnter={() => hold(t.id)}
+          onMouseLeave={() => release(t.id)}
+          className="toast pointer-events-auto flex max-w-[min(30rem,100%)] items-center gap-2.5 rounded-lg border border-slate-200 bg-white py-2 pr-1.5 pl-3 text-[13px] text-slate-900 shadow-[0_4px_12px_rgb(15_23_42/0.08)]"
         >
           {t.tone === 'error' ? (
-            <AlertIcon className="shrink-0 text-red-300" />
+            <AlertIcon className="shrink-0 text-red-600" />
           ) : t.tone === 'success' ? (
-            <CheckIcon className="shrink-0 text-emerald-300" />
-          ) : null}
+            <CheckIcon className="shrink-0 text-emerald-600" />
+          ) : (
+            <InfoIcon className="shrink-0 text-slate-400" />
+          )}
           <span className="min-w-0">{t.message}</span>
           {t.action && (
             <button
               type="button"
-              className="press shrink-0 rounded-md px-2 py-1 font-semibold text-accent-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-accent-200"
+              className="press shrink-0 rounded-md px-2 py-1 font-semibold text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-500"
               onClick={() => {
                 t.action!.run()
                 dismiss(t.id)
@@ -37,7 +45,7 @@ export function Toaster() {
           <button
             type="button"
             aria-label="Dismiss"
-            className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-accent-200"
+            className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"
             onClick={() => dismiss(t.id)}
           >
             <CloseIcon size={14} />

@@ -48,16 +48,16 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-40 flex items-center justify-center p-6">
-      <div className="dialog-scrim absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
+      <div className="dialog-scrim absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="dialog-panel relative flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 outline-none"
+        className="dialog-panel relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl outline-none"
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 id={titleId} className="text-base font-semibold tracking-tight text-slate-900">
             {title}
           </h2>
@@ -70,7 +70,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
             <CloseIcon />
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5">{children}</div>
+        <div className="overflow-y-auto p-5">{children}</div>
       </div>
     </div>,
     document.body,

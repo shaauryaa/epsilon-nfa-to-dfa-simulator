@@ -11,7 +11,7 @@ export interface XY {
 }
 
 /** Diameter of a state circle, in pixels. Shared by layout, nodes and routing. */
-export const NODE_SIZE = 52
+export const NODE_SIZE = 56
 
 /**
  * Lays out states left to right with dagre.

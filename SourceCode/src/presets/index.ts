@@ -11,6 +11,8 @@ import { EPSILON, type ENFA } from '../core/types'
 export interface Preset {
   id: string
   name: string
+  /** Short title for the quick-access chips in the navbar. */
+  shortName?: string
   description: string
   nfa: ENFA
   expected: { accepts: string[]; rejects: string[] }
@@ -24,6 +26,7 @@ export const presets: Preset[] = [
   {
     id: 'thompson-abb',
     name: 'Thompson ε-NFA for (a|b)*abb',
+    shortName: '(a|b)*abb',
     description:
       'The textbook Thompson construction for (a|b)*abb with states 0–10. Subset construction gives the five DFA states A–E.',
     nfa: {
@@ -53,6 +56,7 @@ export const presets: Preset[] = [
   {
     id: 'a-star-b-star-c-star',
     name: 'a*b*c* with an ε chain',
+    shortName: 'a*b*c*',
     description: 'q0 loops on a, q1 on b, q2 on c, joined by q0 ε→ q1 ε→ q2. The final state q2 is ε-reachable from every state.',
     nfa: {
       states: ['q0', 'q1', 'q2'],
@@ -74,6 +78,7 @@ export const presets: Preset[] = [
   {
     id: 'epsilon-cycle',
     name: 'ε-cycle',
+    shortName: 'ε-cycle',
     description:
       'q0 ε→ q1 ε→ q2 ε→ q0 forms a cycle, so all three share one ε-closure. Accepts strings over {a,b} ending in b.',
     nfa: {

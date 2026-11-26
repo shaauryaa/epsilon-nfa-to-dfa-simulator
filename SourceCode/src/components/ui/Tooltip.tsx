@@ -9,6 +9,15 @@ interface TooltipProps {
   children: ReactElement<Record<string, unknown>>
 }
 
+/** Hides whichever tooltip is open. */
+let hideOpen: (() => void) | null = null
+
+/** Makes `hide` the open tooltip's closer, first closing any other tooltip. */
+function claimTooltip(hide: () => void) {
+  if (hideOpen !== hide) hideOpen?.()
+  hideOpen = hide
+}
+
 /**
  * Shows a short text above its child on hover or keyboard focus. Rendered in
  * a portal so table scroll areas do not clip it. The child gets
@@ -17,10 +26,15 @@ interface TooltipProps {
 export function Tooltip({ content, tone = 'neutral', children }: TooltipProps) {
   const id = useId()
   const [rect, setRect] = useState<DOMRect | null>(null)
-  if (content === null) return children
+  // Always render the same tree so toggling `content` never remounts (and blurs) the child.
+  const visible = rect !== null && content !== null
 
-  const show = (e: { currentTarget: EventTarget }) => setRect((e.currentTarget as HTMLElement).getBoundingClientRect())
   const hide = () => setRect(null)
+  const show = (e: { currentTarget: EventTarget }) => {
+    // Only one tooltip at a time: showing this one closes any other.
+    claimTooltip(hide)
+    setRect((e.currentTarget as HTMLElement).getBoundingClientRect())
+  }
   const childProps = children.props as Record<string, ((e: unknown) => void) | undefined>
   const chain = (name: string, fn: (e: { currentTarget: EventTarget }) => void) => (e: { currentTarget: EventTarget }) => {
     childProps[name]?.(e)
@@ -30,13 +44,13 @@ export function Tooltip({ content, tone = 'neutral', children }: TooltipProps) {
   return (
     <>
       {cloneElement(children, {
-        'aria-describedby': rect ? id : undefined,
+        'aria-describedby': visible ? id : undefined,
         onMouseEnter: chain('onMouseEnter', show),
         onMouseLeave: chain('onMouseLeave', hide),
         onFocus: chain('onFocus', show),
         onBlur: chain('onBlur', hide),
       })}
-      {rect &&
+      {visible &&
         createPortal(
           <div
             id={id}

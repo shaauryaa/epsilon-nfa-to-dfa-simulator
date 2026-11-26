@@ -14,6 +14,7 @@ function selectLine(el: HTMLTextAreaElement, line: number) {
   el.focus({ preventScroll: true })
   el.setSelectionRange(start, start + (lines[line - 1]?.length ?? 0))
   el.scrollTop = Math.max(0, (line - 3) * LINE)
+  el.scrollIntoView({ block: 'nearest' })
 }
 
 /**

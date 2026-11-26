@@ -21,9 +21,15 @@ export const TABS: { id: Tab; label: string }[] = [
   { id: 'test', label: 'Test' },
   { id: 'minimize', label: 'Minimize' },
 ]
+/** Whether the "Text format" section of the builder is expanded. */
 export type EditorView = 'table' | 'text'
+/** A transition-table cell the pointer is over; the graph highlights it. */
+export interface HoverCell {
+  state: string
+  symbol: string
+}
 /** Which editor produced a change. `text` changes keep the user's own text. */
-export type Origin = 'init' | 'table' | 'text' | 'graph' | 'preset' | 'new' | 'import' | 'undo'
+export type Origin = 'init' | 'table' | 'text' | 'graph' | 'preset' | 'new' | 'import' | 'undo' | 'redo'
 
 export const DEFAULT_PRESET = 'thompson-abb'
 const KEY_NFA = 'enfa-sim.nfa.v1'
@@ -47,20 +53,25 @@ export interface AppState extends Derived {
   /** Bumped whenever the graph should re-fit the view (preset, import, re-layout). */
   layoutNonce: number
   history: Snapshot[]
+  /** Snapshots undone and not yet redone; cleared by any new edit. */
+  future: Snapshot[]
   activeTab: Tab
   editorView: EditorView
   focusRequest: { target: FocusTarget; nonce: number } | null
+  hoverCell: HoverCell | null
 
   /** Replaces the machine. `rename` moves a node position to a state's new name. */
   commit: (nfa: ENFA, origin: Origin, opts?: { presetId?: string | null; rename?: [string, string] }) => void
   setTextDraft: (text: string) => void
   loadPreset: (id: string) => void
   undo: () => boolean
+  redo: () => boolean
   setPosition: (id: string, xy: XY) => void
   relayout: () => void
   setActiveTab: (tab: Tab) => void
   setEditorView: (view: EditorView) => void
   requestFocus: (target: FocusTarget) => void
+  setHoverCell: (cell: HoverCell | null) => void
 }
 
 function readStorage(key: string): string | null {
@@ -131,9 +142,11 @@ export const useApp = create<AppState>((set, get) => ({
   positions: placeNodes(init.nfa, {}),
   layoutNonce: 0,
   history: [],
+  future: [],
   activeTab: initialTab(),
   editorView: 'table',
   focusRequest: null,
+  hoverCell: null,
   ...derive(init.nfa),
 
   commit: (nfa, origin, opts = {}) => {
@@ -154,6 +167,7 @@ export const useApp = create<AppState>((set, get) => ({
       origin,
       presetId: opts.presetId !== undefined ? opts.presetId : null,
       history,
+      future: [],
       textDraft: origin === 'text' ? s.textDraft : toText(nfa),
       parseError: origin === 'text' ? s.parseError : null,
       positions: placeNodes(nfa, fresh ? {} : positions),
@@ -192,10 +206,29 @@ export const useApp = create<AppState>((set, get) => ({
       presetId: prev.presetId,
       positions: placeNodes(prev.nfa, prev.positions),
       history: s.history.slice(0, -1),
+      future: [...s.future, { nfa: s.nfa, presetId: s.presetId, positions: s.positions }],
       origin: 'undo',
       textDraft: toText(prev.nfa),
       parseError: null,
       ...derive(prev.nfa),
+    })
+    return true
+  },
+
+  redo: () => {
+    const s = get()
+    const next = s.future.at(-1)
+    if (!next) return false
+    set({
+      nfa: next.nfa,
+      presetId: next.presetId,
+      positions: placeNodes(next.nfa, next.positions),
+      history: [...s.history, { nfa: s.nfa, presetId: s.presetId, positions: s.positions }].slice(-HISTORY_LIMIT),
+      future: s.future.slice(0, -1),
+      origin: 'redo',
+      textDraft: toText(next.nfa),
+      parseError: null,
+      ...derive(next.nfa),
     })
     return true
   },
@@ -211,9 +244,10 @@ export const useApp = create<AppState>((set, get) => ({
   requestFocus: (target) =>
     set((s) => ({
       focusRequest: { target, nonce: (s.focusRequest?.nonce ?? 0) + 1 },
-      editorView: target.kind === 'text' ? 'text' : 'table',
-      activeTab: 'define',
+      // Text targets open the "Text format" section; other targets leave it as it is.
+      editorView: target.kind === 'text' ? 'text' : s.editorView,
     })),
+  setHoverCell: (cell) => set({ hoverCell: cell }),
 }))
 
 // Persist the machine whenever it changes. Failures are ignored (see writeStorage).

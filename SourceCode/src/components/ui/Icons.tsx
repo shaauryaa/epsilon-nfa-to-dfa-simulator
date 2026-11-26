@@ -94,3 +94,66 @@ export const FitIcon = (p: IconProps) => (
     <path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" />
   </Icon>
 )
+export const InfoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5.5M12 7.5h.01" />
+  </Icon>
+)
+export const BookIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 6.5C10.5 5.3 8.3 4.8 4 5v13c4.3-.2 6.5.3 8 1.5 1.5-1.2 3.7-1.7 8-1.5V5c-4.3-.2-6.5.3-8 1.5zM12 6.5v13" />
+  </Icon>
+)
+export const UndoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 14L4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </Icon>
+)
+export const RedoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M15 14l5-5-5-5" />
+    <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+  </Icon>
+)
+/** A chip with pins: the app's logo mark. */
+export const ChipIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+    <rect x="9.5" y="9.5" width="5" height="5" rx="0.5" />
+    <path d="M9.5 2.5V6M14.5 2.5V6M9.5 18v3.5M14.5 18v3.5M2.5 9.5H6M2.5 14.5H6M18 9.5h3.5M18 14.5h3.5" />
+  </Icon>
+)
+export const CircleDotIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="1.5" />
+  </Icon>
+)
+export const ArrowsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16" />
+  </Icon>
+)
+export const TableIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15" />
+  </Icon>
+)
+export const TextIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 6h14M5 10h14M5 14h9M5 18h6" />
+  </Icon>
+)
+export const SigmaIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M18 5H6l6 7-6 7h12" />
+  </Icon>
+)
+export const ChartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Icon>
+)

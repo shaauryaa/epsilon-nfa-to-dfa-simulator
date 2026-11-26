@@ -8,7 +8,7 @@
  * the problem to the user.
  */
 
-import { EPSILON, type ENFA } from '../core'
+import { EPSILON, EPSILON_KEYWORDS, type ENFA } from '../core'
 
 /**
  * Returns a deep copy of an ε-NFA.
@@ -287,6 +287,79 @@ export function checkName(name: string, taken: readonly string[], kind: 'state' 
   if (kind === 'symbol' && name === EPSILON) return 'ε is reserved for empty moves.'
   if (taken.includes(name)) return kind === 'state' ? `“${name}” is already a state.` : `“${name}” is already a symbol.`
   return null
+}
+
+/**
+ * Removes one transition `from --symbol--> to`, if present.
+ *
+ * @param nfa - The automaton.
+ * @param from - Source state.
+ * @param symbol - Alphabet symbol or {@link EPSILON}.
+ * @param to - Target state to remove from that cell.
+ * @returns The new automaton (an unchanged copy if the transition is absent).
+ * @throws Never throws.
+ */
+export function removeTransition(nfa: ENFA, from: string, symbol: string, to: string): ENFA {
+  const current = nfa.transitions[from]?.[symbol] ?? []
+  if (!current.includes(to)) return cloneENFA(nfa)
+  return setTargets(
+    nfa,
+    from,
+    symbol,
+    current.filter((t) => t !== to),
+  )
+}
+
+/**
+ * Adds `to` to the cell δ(from, symbol) if it is missing, otherwise removes
+ * it. New targets are kept in state declaration order so the table reads
+ * naturally; targets that are not declared states stay at the end.
+ *
+ * @param nfa - The automaton.
+ * @param from - Source state.
+ * @param symbol - Alphabet symbol or {@link EPSILON}.
+ * @param to - Target state to toggle.
+ * @returns The new automaton.
+ * @throws Never throws.
+ */
+export function toggleTarget(nfa: ENFA, from: string, symbol: string, to: string): ENFA {
+  const current = nfa.transitions[from]?.[symbol] ?? []
+  if (current.includes(to)) return removeTransition(nfa, from, symbol, to)
+  const next = new Set([...current, to])
+  const declared = nfa.states.filter((s) => next.has(s))
+  const undeclared = [...next].filter((s) => !nfa.states.includes(s))
+  return setTargets(nfa, from, symbol, [...declared, ...undeclared])
+}
+
+/**
+ * Reads the symbol field of the "Add transition" form. Several symbols may
+ * be separated by commas or spaces (`a,b`). The words `eps`, `epsilon`, `e`
+ * and `ε` mean ε, unless the word is itself in the alphabet (the same rule
+ * the text format uses).
+ *
+ * @param raw - What the user typed.
+ * @param alphabet - The current alphabet.
+ * @returns The symbols in order without repeats; ε is returned as {@link EPSILON}.
+ * @throws Never throws.
+ */
+export function parseSymbols(raw: string, alphabet: readonly string[]): string[] {
+  const out = raw
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((w) => (w === EPSILON || (EPSILON_KEYWORDS.includes(w) && !alphabet.includes(w)) ? EPSILON : w))
+  return [...new Set(out)]
+}
+
+/**
+ * Writes a cell's targets as a set in textbook notation: `{1, 7}`, or `∅`
+ * when there are none.
+ *
+ * @param targets - Target state names.
+ * @returns The formatted set.
+ * @throws Never throws.
+ */
+export function formatTargets(targets: readonly string[] | undefined): string {
+  return !targets || targets.length === 0 ? '∅' : `{${targets.join(', ')}}`
 }
 
 function pruneEmptyRows(nfa: ENFA): ENFA {

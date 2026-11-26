@@ -21,6 +21,36 @@ export interface MergedEdge {
   hasReverse: boolean
 }
 
+/** One transition `from --symbol--> to`. */
+export interface TransitionTriple {
+  from: string
+  symbol: string
+  to: string
+}
+
+/**
+ * Lists every transition as a single triple, ordered by source state
+ * (declaration order), then symbol (alphabet order, ε last), then target as
+ * stored. Sources or symbols that are not declared come after, in storage
+ * order, so nothing in the table is hidden from the list.
+ *
+ * @param nfa - The automaton.
+ * @returns The transitions.
+ * @throws Never throws.
+ */
+export function listTransitions(nfa: ENFA): TransitionTriple[] {
+  const sources = [...nfa.states, ...Object.keys(nfa.transitions).filter((s) => !nfa.states.includes(s))]
+  const symbolOrder = [...nfa.alphabet, EPSILON]
+  const out: TransitionTriple[] = []
+  for (const from of [...new Set(sources)]) {
+    const row = nfa.transitions[from]
+    if (!row) continue
+    const symbols = [...symbolOrder.filter((s) => s in row), ...Object.keys(row).filter((s) => !symbolOrder.includes(s))]
+    for (const symbol of symbols) for (const to of row[symbol] ?? []) out.push({ from, symbol, to })
+  }
+  return out
+}
+
 /**
  * Merges parallel transitions into one edge per (source, target) pair.
  *

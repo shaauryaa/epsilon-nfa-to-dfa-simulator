@@ -8,8 +8,8 @@ import type { ENFA, Issue } from '../core'
 /** Where to send focus for an issue. Row indexes are 0-based table rows. */
 export type FocusTarget =
   | { kind: 'state'; row: number }
-  | { kind: 'start'; row: number }
-  | { kind: 'final'; row: number }
+  | { kind: 'start' }
+  | { kind: 'final' }
   | { kind: 'cell'; row: number; symbol: string }
   | { kind: 'symbol'; symbol: string }
   | { kind: 'epsilon' }
@@ -22,15 +22,13 @@ export type FocusTarget =
  * at. Text targets have no table element and return `text`.
  *
  * @param t - The focus target.
- * @returns The key, e.g. `cell:2:a`, `state:0` or `eps`.
+ * @returns The key, e.g. `cell:2:a`, `state:0`, `start` or `eps`.
  * @throws Never throws.
  */
 export function focusKey(t: FocusTarget): string {
   switch (t.kind) {
     case 'state':
-    case 'start':
-    case 'final':
-      return `${t.kind}:${t.row}`
+      return `state:${t.row}`
     case 'cell':
       return `cell:${t.row}:${t.symbol}`
     case 'symbol':
@@ -85,9 +83,9 @@ export function focusTargetFor(issue: Issue, nfa: ENFA, text: string): FocusTarg
       return { kind: 'symbol', symbol: issue.symbol ?? '' }
     case 'NO_START':
     case 'START_NOT_A_STATE':
-      return { kind: 'start', row: 0 }
+      return { kind: 'start' }
     case 'NO_FINALS':
-      return { kind: 'final', row: 0 }
+      return { kind: 'final' }
     case 'NO_EPSILON':
       return { kind: 'epsilon' }
     case 'UNKNOWN_TARGET_STATE': {

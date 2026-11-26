@@ -17,7 +17,7 @@ const COPY: Record<Exclude<Tab, 'define'>, { title: string; body: string }> = {
   },
 }
 
-/** Temporary content for tabs that are not built yet; shows the derived result is ready. */
+/** Temporary right-sidebar content for modes that are not built yet; shows the derived result is ready. */
 export function PlaceholderTab({ tab }: { tab: Exclude<Tab, 'define'> }) {
   const subset = useApp((s) => s.subset)
   const minimized = useApp((s) => s.minimized)
@@ -31,23 +31,24 @@ export function PlaceholderTab({ tab }: { tab: Exclude<Tab, 'define'> }) {
       : subset && `Subset construction finds ${subset.dfa.states.length} DFA states in ${subset.steps.length} recorded steps.`
 
   return (
-    <div className="grid min-h-[60vh] place-items-center">
-      <div className="max-w-md rounded-2xl border border-slate-200 bg-white px-8 py-10 text-center shadow-xs">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
-        <p className="mt-2 text-sm text-slate-600">{body}</p>
-        {errors > 0 ? (
-          <div className="mt-5 flex flex-col items-center gap-3">
-            <p className="inline-flex items-center gap-1.5 text-sm text-red-700">
-              <AlertIcon size={15} /> Fix the {errors === 1 ? 'error' : `${errors} errors`} in the Define tab first.
-            </p>
-            <Button variant="primary" onClick={() => setTab('define')}>
-              Go to Define
-            </Button>
-          </div>
-        ) : (
-          summary && <p className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700 tabular-nums">{summary}</p>
-        )}
-      </div>
-    </div>
+    <section className="px-4 py-4">
+      <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">{title}</h2>
+      <p className="mt-2 text-sm text-slate-600">{body}</p>
+      {errors > 0 ? (
+        <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="inline-flex items-start gap-1.5 text-xs text-red-800">
+            <AlertIcon size={13} className="mt-px shrink-0 text-red-600" /> Fix the {errors === 1 ? 'error' : `${errors} errors`} in
+            the builder first.
+          </p>
+          <Button variant="primary" size="sm" onClick={() => setTab('define')}>
+            Go to Define
+          </Button>
+        </div>
+      ) : (
+        summary && (
+          <p className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 tabular-nums">{summary}</p>
+        )
+      )}
+    </section>
   )
 }
