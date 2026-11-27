@@ -59,9 +59,17 @@ const empty = (): Omit<Frame, 'phase' | 'text' | 'ms'> => ({
 
 /**
  * Builds the closure frames: the closure spreads from `seeds` along ε-edges
- * in search order, lighting each newly reached state in turn.
+ * in search order, lighting each newly reached state in turn. Long closures
+ * light several states per frame (at most 10 frames).
+ *
+ * @param nfa - The ε-NFA.
+ * @param seeds - The states the closure starts from.
+ * @param base - Fields copied into every frame (the set S, move(S, a), ...).
+ * @param target - The finished ε-closure, named in the last frame's text.
+ * @returns At least one frame; `closure` and `epsilonEdges` grow frame by frame.
+ * @throws Never throws.
  */
-function closureFrames(nfa: ENFA, seeds: string[], base: Omit<Frame, 'phase' | 'text' | 'ms'>, target: string[]): Frame[] {
+export function closureFrames<B extends Omit<Frame, 'phase' | 'text' | 'ms'>>(nfa: ENFA, seeds: string[], base: B, target: string[]): (B & Frame)[] {
   const { edges } = epsilonClosureTrace(nfa, seeds)
   if (edges.length === 0) {
     return [

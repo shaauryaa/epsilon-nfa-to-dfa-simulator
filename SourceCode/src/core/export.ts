@@ -245,6 +245,18 @@ function csvCell(s: string): string {
 }
 
 /**
+ * Joins rows of cells into CSV text (RFC 4180). Cells containing a quote,
+ * comma, line break or leading/trailing whitespace are quoted.
+ *
+ * @param rows - The rows; each row is a list of cell strings.
+ * @returns CSV text with CRLF line endings and a final CRLF.
+ * @throws Never throws.
+ */
+export function rowsToCSV(rows: readonly (readonly string[])[]): string {
+  return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
+}
+
+/**
  * Writes the DFA transition table as CSV (RFC 4180): one row per state with
  * its subset of NFA states, start/final flags and one column per symbol. A
  * missing move (partial DFA) is an empty cell.
