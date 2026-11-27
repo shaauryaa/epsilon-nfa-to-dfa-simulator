@@ -1,6 +1,7 @@
 import { EPSILON } from '../../core'
 import { formatTargets } from '../../model/edits'
 import { useApp } from '../../store/automaton'
+import { TheoryLink } from '../TheoryLink'
 import { Section } from '../builder/Section'
 import { SigmaIcon } from '../ui/Icons'
 
@@ -59,6 +60,7 @@ export function FormalDefinition() {
       ) : (
         <p className="mt-2 text-xs text-slate-500">No transitions yet; every pair maps to ∅.</p>
       )}
+      <TheoryLink topic="enfa" />
     </Section>
   )
 }

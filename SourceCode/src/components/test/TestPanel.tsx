@@ -18,6 +18,7 @@ import { fieldClass, Section } from '../builder/Section'
 import { ConvertErrors, Player } from '../convert/ConvertPanel'
 import { useConversion } from '../convert/useConversion'
 import { Button } from '../ui/Button'
+import { TheoryLink } from '../TheoryLink'
 import { AlertIcon, ArrowsIcon, CheckIcon, CloseIcon, DownloadIcon, PlayIcon, TableIcon, TextIcon } from '../ui/Icons'
 import { downloadBatchCSV } from './testExports'
 import { useBatchRows, usePresetExpected, useTestRun, useTestView, type TestView } from './testData'
@@ -104,6 +105,7 @@ function RunExplanation({ view }: { view: TestView }) {
       <p aria-live="polite" className="mt-1 min-h-[3.4em] text-[15px] leading-snug font-medium text-pretty text-slate-900">
         {text}
       </p>
+      <TheoryLink topic="enfa" />
     </section>
   )
 }
