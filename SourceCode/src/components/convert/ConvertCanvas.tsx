@@ -39,8 +39,11 @@ export interface PaneProps {
   stateCount: number
   /** States the current animation frame involves; the camera pans to keep them in view. */
   focus?: string[]
-  /** How the automatic view frames the graph: readable zoom from the left (default) or the whole graph. */
-  fitMode?: 'readable' | 'whole'
+  /**
+   * Edges to frame when fitting, if not `edges`: e.g. every edge of the
+   * finished DFA while it is still being built, so the view holds them all.
+   */
+  fitEdges?: Edge<TransitionEdgeData>[]
 }
 
 /** Height kept clear for a pane's legend when fitting, in px. */
@@ -49,8 +52,14 @@ const LEGEND_INSET = 40
 /** Time for the camera to follow playback, in ms. */
 const FOLLOW_MS = 360
 
+/**
+ * How every split pane frames its graph automatically: the whole graph, so
+ * Convert, Test and Minimize all open with every state in view.
+ */
+const fitMode = 'whole'
+
 /** One read-only React Flow canvas with a title, Fit and Map controls. */
-export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus, fitMode = 'readable' }: PaneProps) {
+export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus, fitEdges }: PaneProps) {
   const rf = useReactFlow()
   const wrapper = useRef<HTMLDivElement>(null)
   const [mapChoice, setMapChoice] = useState<boolean | null>(null)
@@ -62,9 +71,9 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
   const hasLegend = !!legend
   useLayoutEffect(() => {
     latest.current = nodes
-    latestEdges.current = edges
+    latestEdges.current = fitEdges ?? edges
     inset.current = hasLegend ? LEGEND_INSET : 0
-  }, [nodes, edges, hasLegend])
+  }, [nodes, edges, fitEdges, hasLegend])
   /** Fit button: the whole graph, zooming out as far as needed. */
   const fit = (duration = 0) =>
     fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole', bottomInset: inset.current })
@@ -72,7 +81,7 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
   useEffect(() => {
     const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode, bottomInset: inset.current }))
     return () => cancelAnimationFrame(id)
-  }, [fitKey, rf, fitMode])
+  }, [fitKey, rf])
 
   // Follow playback: pan (and zoom out only if needed) to bring the frame's states into view.
   const focusKey = focus && focus.length > 0 ? focus.join(',') : ''
@@ -107,7 +116,7 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
       ro.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [rf, fitMode])
+  }, [rf])
 
   return (
     <div ref={wrapper} className="relative min-h-0 min-w-0 flex-1 bg-slate-50">
@@ -342,12 +351,22 @@ function DfaPane({ view }: { view: ConvertView }) {
     })
   }, [merged, routes, progress.drawing, step.index, live, motionMs])
 
+  // The fit frames the finished DFA, so edges found later never leave the pane.
+  const fitEdges = useMemo<Edge<TransitionEdgeData>[]>(() => {
+    const full = dfaRoutes(dfa, layout, dfa.states, dfa.transitions)
+    return full.merged.flatMap((e) => {
+      const route = full.routes.get(e.id)
+      return route ? [{ id: e.id, source: e.source, target: e.target, data: { route, symbols: e.symbols, epsilonOnly: false, highlight: null } }] : []
+    })
+  }, [dfa, layout])
+
   return (
     <Pane
       title="DFA"
       subtitle={`${progress.states.length} of ${dfa.states.length} states found`}
       nodes={nodes}
       edges={edges}
+      fitEdges={fitEdges}
       fitKey={dfa.states.join(',')}
       stateCount={dfa.states.length}
       focus={live ? [step.kind === 'transition' ? step.from : undefined, progress.entering ?? progress.flashing ?? undefined].filter((x): x is string => !!x) : undefined}
@@ -414,7 +433,7 @@ export function ConvertCanvas() {
   useConvertClock()
   const conversion = useConversion()
   const view = useConvertView()
-  const boxes = usePaneBoxes(conversion && !conversion.large ? conversion.result.dfa : null)
+  const boxes = usePaneBoxes(conversion ? (conversion.large ? 'hidden' : conversion.result.dfa) : null)
   useEffect(() => () => useConvert.getState().pause(), [])
   if (!conversion || (!conversion.large && !view)) return <NotConvertible />
   return (

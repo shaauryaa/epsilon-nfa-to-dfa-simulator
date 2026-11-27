@@ -18,6 +18,26 @@ import { drawingBounds } from './viewport'
 /** Spacing for DFA layouts. Captions are part of each node box, so the gaps can stay modest. */
 export const DFA_SPACING = { nodesep: 28, ranksep: 48 }
 
+/**
+ * Roomier spacing for small DFAs (such as a minimal DFA), whose few states
+ * carry many back edges: the extra room keeps every edge label readable.
+ */
+export const SMALL_DFA_SPACING = { nodesep: 64, ranksep: 104 }
+
+/** DFAs with at most this many states use {@link SMALL_DFA_SPACING}. */
+export const SMALL_DFA_STATES = 4
+
+/**
+ * Spacing for a DFA layout.
+ *
+ * @param states - Number of DFA states.
+ * @returns {@link SMALL_DFA_SPACING} for up to {@link SMALL_DFA_STATES} states, {@link DFA_SPACING} otherwise.
+ * @throws Never throws.
+ */
+export function dfaSpacing(states: number): { nodesep: number; ranksep: number } {
+  return states <= SMALL_DFA_STATES ? SMALL_DFA_SPACING : DFA_SPACING
+}
+
 /** Caption geometry, in px at zoom 1. */
 export const CAPTION = {
   /** Gap between the circle and the caption box. */
@@ -131,7 +151,7 @@ export function layoutDFA(dfa: DFA, captions?: Readonly<Record<string, string>>)
         return [s, text ? { width: captionWidth(text) + 8, height: NODE_SIZE + CAPTION.gap + CAPTION.height + 4 } : { width: NODE_SIZE, height: NODE_SIZE }]
       }),
     )
-    out = layoutLR(dfa.states, mergedEdges(dfaToENFA(dfa)), DFA_SPACING, boxes)
+    out = layoutLR(dfa.states, mergedEdges(dfaToENFA(dfa)), dfaSpacing(dfa.states.length), boxes)
   }
   cache.set(dfa, out)
   return out

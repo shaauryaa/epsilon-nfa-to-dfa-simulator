@@ -38,7 +38,7 @@ export function TextEditor() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="relative flex min-h-0 flex-1 font-mono text-[13px]">
+      <div className="relative flex min-h-0 flex-1 font-mono text-[13px] focus-within:shadow-[inset_0_0_0_2px_rgb(37_99_235/0.45)]">
         <div
           ref={gutter}
           aria-hidden="true"

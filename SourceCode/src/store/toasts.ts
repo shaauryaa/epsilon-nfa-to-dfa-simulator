@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-/** A short notification shown at the top of the canvas. */
+/** A short notification shown at the bottom of the right sidebar. */
 export interface Toast {
   id: number
   message: string
@@ -21,17 +21,21 @@ interface ToastState {
 
 let nextId = 1
 const EXIT_MS = 160
-/** Every toast closes itself after this long, unless the pointer is resting on it. */
-export const TOAST_MS = 3000
+/**
+ * How long each kind of toast stays, in ms, unless the pointer is resting on
+ * it: confirmations go quickly, errors stay long enough to read.
+ */
+export const TOAST_MS: Readonly<Record<Toast['tone'], number>> = { success: 2500, info: 3000, error: 6000 }
 const timers = new Map<number, number>()
 
 /** Toast store. At most one toast is visible: a new toast replaces the current one. */
 export const useToasts = create<ToastState>((set, get) => {
   const arm = (id: number) => {
     window.clearTimeout(timers.get(id))
+    const tone = get().toasts.find((t) => t.id === id)?.tone ?? 'info'
     timers.set(
       id,
-      window.setTimeout(() => get().dismiss(id), TOAST_MS),
+      window.setTimeout(() => get().dismiss(id), TOAST_MS[tone]),
     )
   }
   return {

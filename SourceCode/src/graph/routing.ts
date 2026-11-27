@@ -44,6 +44,14 @@ export interface RouteInput {
    * captions under DFA states.
    */
   blocks?: readonly Rect[]
+  /**
+   * Boxes the edge avoids when it can, such as the label pills of edges
+   * routed earlier. A bend that clears them is preferred, but clearing
+   * `blocks` always comes first.
+   */
+  softBlocks?: readonly Rect[]
+  /** Points along the lines of edges routed earlier; the label slides along the edge to keep off them when it can. */
+  softLines?: readonly XY[]
   /** Half the width of the edge's label pill, in px (default 16). */
   labelHalfWidth?: number
 }
@@ -61,6 +69,13 @@ function rectGap(p: XY, hw: number, b: Rect): number {
   const gx = Math.max(b.x - (p.x + hw), p.x - hw - (b.x + b.width))
   const gy = Math.max(b.y - (p.y + LABEL_HALF_HEIGHT), p.y - LABEL_HALF_HEIGHT - (b.y + b.height))
   return Math.max(gx, gy)
+}
+
+/** Signed gap between a label pill centred at `p` and the nearest of some line points (negative = a line crosses the pill). */
+function lineGap(p: XY, hw: number, lines: readonly XY[]): number {
+  let gap = Infinity
+  for (const q of lines) gap = Math.min(gap, Math.max(Math.abs(q.x - p.x) - hw, Math.abs(q.y - p.y) - LABEL_HALF_HEIGHT) - 2)
+  return gap
 }
 
 const CLEARANCE = 10
@@ -112,7 +127,7 @@ function fallbackOffsets(hasReverse: boolean, lane: 0 | 1 | 2): number[] {
  * clear of every state and blocked box, otherwise the nearest position along
  * the edge that is, so a label never sits on a state circle or a caption.
  */
-function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number, blocks: readonly Rect[], hw: number): XY {
+function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number, blocks: readonly Rect[], hw: number, lines: readonly XY[] = []): XY {
   const ts = [0.5, 0.42, 0.58, 0.34, 0.66, 0.27, 0.73, 0.2, 0.8]
   let best = quadPoint(start, c, end, 0.5)
   let bestGap = -Infinity
@@ -121,6 +136,7 @@ function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number,
     const gap = Math.min(
       ...states.map((o) => Math.hypot(p.x - o.x, p.y - o.y) - r - LABEL_CLEARANCE),
       ...blocks.map((b) => rectGap(p, hw, b) - 2),
+      lineGap(p, hw, lines),
     )
     if (gap >= 0) return p
     if (gap > bestGap) {
@@ -168,33 +184,56 @@ export function routeEdge(input: RouteInput): Route {
   const candidates = candidateOffsets(input.hasReverse, lane)
 
   const blocks = input.blocks ?? []
-  const hits = (offset: number, withBlocks: boolean) => {
+  const soft = input.softBlocks ?? []
+  /** True when the bend crosses a state, or a box of the given strictness (0 states only, 1 + blocks, 2 + soft blocks). */
+  const hits = (offset: number, level: 0 | 1 | 2) => {
     const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
     for (let i = 1; i < 40; i++) {
       const p = quadPoint(s, c, t, i / 40)
       // Points inside the end circles are trimmed away later, so they never count.
       if (Math.hypot(p.x - s.x, p.y - s.y) < r || Math.hypot(p.x - t.x, p.y - t.y) < r) continue
       for (const o of input.obstacles) if (Math.hypot(p.x - o.x, p.y - o.y) < r + CLEARANCE) return true
-      if (withBlocks) for (const b of blocks) if (inRect(p, b, BLOCK_CLEARANCE)) return true
+      if (level >= 1) for (const b of blocks) if (inRect(p, b, BLOCK_CLEARANCE)) return true
+      if (level >= 2) for (const b of soft) if (inRect(p, b, BLOCK_CLEARANCE)) return true
     }
     return false
   }
-  // Prefer a bend that clears states and captions; then one that clears states only.
+  const fallback = blocks.length + soft.length > 0 ? fallbackOffsets(input.hasReverse, lane) : []
+  // Prefer a bend that clears states, captions and earlier labels; then states and captions; then states only.
   const offset =
-    candidates.find((o) => !hits(o, true)) ??
-    (blocks.length > 0 ? fallbackOffsets(input.hasReverse, lane).find((o) => !hits(o, true)) : undefined) ??
-    candidates.find((o) => !hits(o, false)) ??
+    candidates.find((o) => !hits(o, 2)) ??
+    fallback.find((o) => !hits(o, 2)) ??
+    candidates.find((o) => !hits(o, 1)) ??
+    fallback.find((o) => !hits(o, 1)) ??
+    candidates.find((o) => !hits(o, 0)) ??
     candidates[0]
   // Control point twice the offset away, so the curve's apex sits `offset` from the chord.
   const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
   const start = towards(s, offset === 0 ? t : c, r)
   const end = towards(t, offset === 0 ? s : c, r + 2)
-  const label = placeLabel(start, c, end, [s, t, ...input.obstacles], r, blocks, input.labelHalfWidth ?? 16)
+  const label = placeLabel(start, c, end, [s, t, ...input.obstacles], r, [...blocks, ...soft], input.labelHalfWidth ?? 16, input.softLines)
   return {
     path: `M ${r1(start.x)} ${r1(start.y)} Q ${r1(c.x)} ${r1(c.y)} ${r1(end.x)} ${r1(end.y)}`,
     labelX: r1(label.x),
     labelY: r1(label.y),
   }
+}
+
+/** Points along a routed path (one `M` and one `Q` or `C` segment). */
+function pathPoints(d: string, n = 32): XY[] {
+  const v = (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+  const out: XY[] = []
+  for (let i = 1; i < n; i++) {
+    const t = i / n
+    const u = 1 - t
+    if (v.length === 6) out.push({ x: u * u * v[0] + 2 * u * t * v[2] + t * t * v[4], y: u * u * v[1] + 2 * u * t * v[3] + t * t * v[5] })
+    else if (v.length === 8)
+      out.push({
+        x: u ** 3 * v[0] + 3 * u * u * t * v[2] + 3 * u * t * t * v[4] + t ** 3 * v[6],
+        y: u ** 3 * v[1] + 3 * u * u * t * v[3] + 3 * u * t * t * v[5] + t ** 3 * v[7],
+      })
+  }
+  return out
 }
 
 /** The edge fields {@link routeAll} needs (a `MergedEdge` has them all). */
@@ -224,6 +263,10 @@ export function labelHalfWidth(label: string): number {
 /**
  * Routes every edge around the other states. A symbol edge and an ε-edge
  * between the same states go in separate lanes so they never overlap.
+ * Self-loops are routed first, then the other edges in order; each placed
+ * label pill becomes a box the later edges (their lines and labels) keep
+ * clear of, and each later label slides along its edge to keep off the
+ * lines already drawn, so labels stay readable.
  *
  * @param edges - Edges, e.g. from `mergedEdges`.
  * @param centres - Circle centre of each state.
@@ -240,14 +283,21 @@ export function routeAll(
 ): Map<string, Route> {
   const out = new Map<string, Route>()
   const all = [...centres.entries()]
-  for (const e of edges) {
+  const placed: Rect[] = []
+  const lines: XY[] = []
+  // Self-loop labels have a fixed place above their state, so loops go first and the other edges keep clear of them.
+  for (const e of [...edges.filter((x) => x.loop), ...edges.filter((x) => !x.loop)]) {
     const source = centres.get(e.source)
     const target = centres.get(e.target)
     if (!source || !target) continue
     const obstacles = all.filter(([id]) => id !== e.source && id !== e.target).map(([, p]) => p)
     const lane = e.hasParallel ? (e.epsilonOnly ? 2 : 1) : 0
     const labelHalf = e.label !== undefined ? labelHalfWidth(e.label) : undefined
-    out.set(e.id, routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius, lane, blocks, labelHalfWidth: labelHalf }))
+    const route = routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius, lane, blocks, softBlocks: placed, softLines: lines, labelHalfWidth: labelHalf })
+    out.set(e.id, route)
+    const hw = labelHalf ?? 16
+    placed.push({ x: route.labelX - hw, y: route.labelY - LABEL_HALF_HEIGHT, width: hw * 2, height: LABEL_HALF_HEIGHT * 2 })
+    lines.push(...pathPoints(route.path))
   }
   return out
 }

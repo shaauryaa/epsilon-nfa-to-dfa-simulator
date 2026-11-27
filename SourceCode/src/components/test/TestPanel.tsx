@@ -5,6 +5,7 @@ import {
   dfaTraceCells,
   equivalenceMessage,
   expectedBatchText,
+  MAX_ANIMATED_SYMBOLS,
   nfaTraceCells,
   showString,
   statusLabel,
@@ -70,11 +71,16 @@ function InputSection() {
             {check.tokens.length === 0 ? (
               <li className="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-xs text-violet-800">ε</li>
             ) : (
-              check.tokens.map((t, i) => (
-                <li key={i} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs font-semibold text-slate-800">
-                  {t}
-                </li>
-              ))
+              <>
+                {check.tokens.slice(0, MAX_ANIMATED_SYMBOLS).map((t, i) => (
+                  <li key={i} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs font-semibold text-slate-800">
+                    {t}
+                  </li>
+                ))}
+                {check.tokens.length > MAX_ANIMATED_SYMBOLS && (
+                  <li className="rounded-md px-1.5 py-0.5 text-xs text-slate-500 tabular-nums">+{(check.tokens.length - MAX_ANIMATED_SYMBOLS).toLocaleString('en-US')} more</li>
+                )}
+              </>
             )}
           </ul>
         )
@@ -269,6 +275,7 @@ function BatchSection() {
         value={text}
         onChange={(e) => setText(e.target.value)}
         spellCheck={false}
+        autoComplete="off"
         rows={5}
         placeholder={'abb\naabb\neps'}
         className="block w-full resize-y rounded-md border border-slate-300 bg-white px-2.5 py-2 font-mono text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-600 focus:ring-3 focus:ring-blue-600/12"

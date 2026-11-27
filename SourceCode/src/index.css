@@ -57,7 +57,7 @@ body {
   }
 }
 
-/* Toasts: rise in from below and leave the same way, faster. */
+/* Toasts: rise in from the sidebar's bottom edge and leave the same way, faster. */
 .toast {
   transition:
     opacity 200ms var(--ease-out-strong),

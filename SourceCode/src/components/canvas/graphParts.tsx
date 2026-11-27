@@ -233,6 +233,16 @@ function Token({ path, token, color }: { path: string; token: EdgeToken; color: 
 
 /** A merged transition edge with a pill label; ε-edges are dashed violet. */
 export const TransitionEdge = memo(function TransitionEdge({ id, data, markerEnd, selected }: EdgeProps<TransitionEdgeData>) {
+  const labelRef = useRef<HTMLDivElement>(null)
+  const tokenKey = data?.token?.key
+  const tokenMs = data?.token?.ms
+  // While a token rides the edge it names the symbol itself, so the label steps aside instead of stacking beside it (opacity only).
+  useLayoutEffect(() => {
+    const el = labelRef.current
+    if (!el || tokenKey === undefined || tokenMs === undefined || reducedMotion()) return
+    const anim = el.animate([{ opacity: 1 }, { opacity: 0, offset: 0.12 }, { opacity: 0, offset: 0.88 }, { opacity: 1 }], { duration: tokenMs, easing: 'ease-out' })
+    return () => anim.cancel()
+  }, [tokenKey, tokenMs])
   if (!data) return null
   const hover = data.highlight !== null || selected
   const lit = hover || !!data.lit
@@ -272,6 +282,7 @@ export const TransitionEdge = memo(function TransitionEdge({ id, data, markerEnd
       {data.token && <Token path={data.route.path} token={data.token} color={EDGE_COLOR.highlight} />}
       <EdgeLabelRenderer>
         <div
+          ref={labelRef}
           className={`nodrag nopan pointer-events-none absolute flex items-center rounded-full border px-2 py-px font-mono font-semibold whitespace-nowrap shadow-[0_1px_3px_rgb(15_23_42/0.08)] transition-colors duration-150 ${pill}`}
           style={{
             fontSize: LABEL_FONT,

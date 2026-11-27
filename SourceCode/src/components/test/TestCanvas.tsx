@@ -36,7 +36,8 @@ function Tape({ view, tokens, error }: { view: TestView | null; tokens: string[]
   const w = cellWidth(alphabet)
   const step = view?.step ?? tokens.length
   // During step i the head is on symbol i (cell i-1); at the start it waits before the first cell.
-  const head = step - 1
+  // Past the drawn cells (long inputs) the head has nowhere to sit, so it is hidden.
+  const head = step - 1 < MAX_ANIMATED_SYMBOLS ? step - 1 : -1
   const consumed = view?.frame && view.frame.phase === 'move' ? step - 1 : step
 
   useLayoutEffect(() => {
@@ -59,7 +60,8 @@ function Tape({ view, tokens, error }: { view: TestView | null; tokens: string[]
           <span className="inline-flex h-8 items-center rounded-md border border-dashed border-slate-300 px-3 font-mono text-sm text-slate-500">ε · empty input</span>
         ) : (
           <ol aria-label="Input tape" className="relative flex w-max gap-1">
-            {tokens.map((t, i) => {
+            {/* Inputs too long to animate show their first cells only; the traces list every step. */}
+            {tokens.slice(0, MAX_ANIMATED_SYMBOLS).map((t, i) => {
               const reading = i === head
               const done = i < consumed && !reading
               return (
@@ -75,6 +77,9 @@ function Tape({ view, tokens, error }: { view: TestView | null; tokens: string[]
                 </li>
               )
             })}
+            {tokens.length > MAX_ANIMATED_SYMBOLS && (
+              <li className="grid h-8 place-items-center px-2 text-xs whitespace-nowrap text-slate-500 tabular-nums">+{(tokens.length - MAX_ANIMATED_SYMBOLS).toLocaleString('en-US')} more</li>
+            )}
             <span
               aria-hidden="true"
               className="tape-head pointer-events-none absolute top-0 left-0 h-8 rounded-md border-2 border-blue-600"
@@ -188,7 +193,6 @@ function NfaRunPane({ view }: { view: TestView | null }) {
       fitKey={nfa.states.join(',')}
       legend={view?.frame ? <RunLegend /> : undefined}
       stateCount={nfa.states.length}
-      fitMode="whole"
       focus={live && frame ? [...new Set([...frame.current, ...frame.moved, ...frame.closure])] : undefined}
     />
   )
@@ -259,7 +263,6 @@ function DfaRunPane({ view, dfa }: { view: TestView | null; dfa: DFA }) {
       edges={edges}
       fitKey={dfa.states.join(',')}
       stateCount={dfa.states.length}
-      fitMode="whole"
       focus={live && frame ? [frame.dfaCurrent, edgeTaken?.from, edgeTaken?.to].filter((x): x is string => !!x) : undefined}
     />
   )
@@ -307,7 +310,7 @@ export function TestCanvas() {
 }
 
 function TestPanes({ view, dfa, still, large }: { view: TestView | null; dfa: DFA; still: 'large' | 'long' | null; large: boolean }) {
-  const boxes = usePaneBoxes(large ? null : dfa)
+  const boxes = usePaneBoxes(large ? 'hidden' : dfa)
   return (
     <SplitPanes
       tab="test"

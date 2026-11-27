@@ -10,7 +10,6 @@ import { AboutDialog, DocsDialog } from './components/InfoDialogs'
 import { RightSidebar } from './components/inspector/RightSidebar'
 import { Navbar } from './components/Navbar'
 import { SidebarIcon } from './components/ui/Icons'
-import { Toaster } from './components/ui/Toaster'
 import { TABS, useApp } from './store/automaton'
 import { useDocs } from './store/docs'
 import { toast } from './store/toasts'
@@ -97,7 +96,6 @@ function App() {
                 <GraphView />
               </ReactFlowProvider>
             )}
-            <Toaster />
           </section>
           <BottomPanel />
         </div>

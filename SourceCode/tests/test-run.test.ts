@@ -35,25 +35,25 @@ describe('checkInput', () => {
     for (const s of ['', '   ', 'ε', ' ε ']) expect(checkInput(s, nfa.alphabet)).toEqual({ ok: true, tokens: [] })
   })
 
-  it('reports an invalid symbol with its 1-based position instead of rejecting', () => {
+  it('reports an invalid symbol with its 0-based position instead of rejecting', () => {
     const c = checkInput('abcb', nfa.alphabet)
     expect(c.ok).toBe(false)
     if (c.ok) return
     expect(c.symbol).toBe('c')
-    expect(c.position).toBe(3)
-    expect(c.message).toBe('“c” at position 3 is not in Σ = {a, b}.')
+    expect(c.position).toBe(2)
+    expect(c.message).toBe('“c” at position 2 is not in Σ = {a, b}.')
   })
 
   it('counts positions in characters, not UTF-16 units', () => {
     const c = checkInput('a😀b', nfa.alphabet)
-    expect(c).toMatchObject({ ok: false, symbol: '😀', position: 2 })
-    expect(checkInput('ab😀', nfa.alphabet)).toMatchObject({ ok: false, position: 3 })
+    expect(c).toMatchObject({ ok: false, symbol: '😀', position: 1 })
+    expect(checkInput('ab😀', nfa.alphabet)).toMatchObject({ ok: false, position: 2 })
   })
 
   it('works with multi-character symbols', () => {
     const p = getPreset('multi-char-symbols')!
     expect(checkInput('if x if x', p.nfa.alphabet)).toEqual({ ok: true, tokens: ['if', 'x', 'if', 'x'] })
-    expect(checkInput('ify', p.nfa.alphabet)).toMatchObject({ ok: false, symbol: 'y', position: 3 })
+    expect(checkInput('ify', p.nfa.alphabet)).toMatchObject({ ok: false, symbol: 'y', position: 2 })
   })
 })
 
@@ -199,7 +199,7 @@ describe('batch tester', () => {
   it('reports an invalid symbol as INVALID (not a rejection) with its position', () => {
     const rows = runBatch(['abx'], machines)
     expect(rows[0]).toMatchObject({ status: 'invalid', nfa: null, dfa: null, min: null })
-    expect(rows[0].error).toContain('position 3')
+    expect(rows[0].error).toContain('position 2')
   })
 
   it('shows ε for the empty string and matches expected strings by symbols', () => {

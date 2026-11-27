@@ -128,7 +128,6 @@ function WorkPane({ state }: { state: MinimizeViewState }) {
       edges={edges}
       fitKey={work.states.join(',')}
       stateCount={work.states.length}
-      fitMode="whole"
       legend={canvas.ringed.length > 0 ? <WitnessLegend /> : undefined}
     />
   )
@@ -186,7 +185,6 @@ function MinPane({ view }: { view: MinimizeView }) {
       edges={edges}
       fitKey={dfa.states.join(',')}
       stateCount={dfa.states.length}
-      fitMode="whole"
     />
   )
 }
