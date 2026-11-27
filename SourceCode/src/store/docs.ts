@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 
 /** The theory cards in the Docs dialog, in order. */
-export type DocTopic = 'enfa' | 'closure' | 'move' | 'subset' | 'dead' | 'minimise' | 'complexity' | 'howto' | 'shortcuts'
+export type DocTopic = 'enfa' | 'regex' | 'closure' | 'move' | 'subset' | 'dead' | 'minimise' | 'complexity' | 'howto' | 'shortcuts'
 
 export interface DocsState {
   dialog: 'docs' | 'about' | null

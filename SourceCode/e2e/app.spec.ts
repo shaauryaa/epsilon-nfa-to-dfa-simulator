@@ -62,6 +62,23 @@ test.describe('Convert', () => {
   })
 })
 
+test.describe('From regex', () => {
+  test('(a|b)*abb → Build → Convert gives 5 states → Minimize gives 4', async ({ page }) => {
+    await openApp(page)
+    await loadPreset(page, 'epsilon-cycle')
+    await page.getByRole('textbox', { name: 'Regular expression' }).fill('(a|b)*abb')
+    await page.getByRole('button', { name: 'Build', exact: true }).click()
+    await expect(toast(page)).toContainText('Built the Thompson ε-NFA for (a|b)*abb (11 states)')
+    expect(await savedMachine(page)).toMatchObject({ ...abb.nfa })
+    await openTab(page, 'Convert')
+    await skipToEnd(page)
+    await expect(page.getByText('5 of 5 states found')).toBeVisible()
+    await openTab(page, 'Minimize')
+    await skipToEnd(page)
+    await expect(page.getByText('4 states (was 5)')).toBeVisible()
+  })
+})
+
 test.describe('Minimize', () => {
   test('(a|b)*abb minimizes to 4 states: {A,C}, {B}, {D}, {E}', async ({ page }) => {
     await openApp(page)

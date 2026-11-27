@@ -3,6 +3,7 @@ import { BookIcon } from './ui/Icons'
 
 const TITLES: Record<DocTopic, string> = {
   enfa: 'ε-NFA',
+  regex: 'Regex → ε-NFA (Thompson)',
   closure: 'ε-closure',
   move: 'move(T, a)',
   subset: 'Subset construction',

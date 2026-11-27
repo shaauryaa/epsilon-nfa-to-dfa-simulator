@@ -37,6 +37,20 @@ const CARDS: { id: DocTopic; title: string; body: ReactNode }[] = [
     ),
   },
   {
+    id: 'regex',
+    title: 'Regex → ε-NFA (Thompson)',
+    body: (
+      <>
+        <p>
+          Define → From regex parses the expression (precedence <span className={m}>* ?</span> &gt; concatenation &gt; <span className={m}>| +</span>) and builds one small
+          fragment per piece, each with one start and one final state. States are numbered in the order they are created.
+        </p>
+        <F>{'a      i ─a→ f\nst     end(s) = start(t)\ns | t  i ─ε→ s, t;  s, t ─ε→ f\ns*     i ─ε→ s, f;  end(s) ─ε→ s, f'}</F>
+        <Example>The regex builds exactly the 11-state machine 0–10 used here, with 0 ─ε→ 1, 7 and 6 ─ε→ 1, 7 for the star.</Example>
+      </>
+    ),
+  },
+  {
     id: 'closure',
     title: 'ε-closure',
     body: (

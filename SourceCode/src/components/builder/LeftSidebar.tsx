@@ -3,6 +3,7 @@ import { focusKey } from '../../model/issues'
 import { useApp } from '../../store/automaton'
 import { SidebarIcon, TextIcon } from '../ui/Icons'
 import { AlphabetSection } from './AlphabetSection'
+import { RegexSection } from './RegexSection'
 import { Section } from './Section'
 import { StatesSection } from './StatesSection'
 import { TextEditor } from './TextEditor'
@@ -26,7 +27,7 @@ function TextSection() {
 }
 
 /**
- * The builder: validation banner, then States, Alphabet, Add transition,
+ * The builder: validation banner, From regex, then States, Alphabet, Add transition,
  * Transition table and Text format. It scrolls on its own and moves focus
  * to whatever a validation problem points at.
  */
@@ -69,6 +70,7 @@ export function LeftSidebar({ onCollapse }: { onCollapse?: () => void }) {
         </div>
       )}
       <ValidationBanner />
+      <RegexSection />
       <StatesSection />
       <AlphabetSection />
       <TransitionsSection />
