@@ -57,19 +57,19 @@ body {
   }
 }
 
-/* Toasts: drop in from above and leave the same way, faster. */
+/* Toasts: rise in from below and leave the same way, faster. */
 .toast {
   transition:
     opacity 200ms var(--ease-out-strong),
     transform 200ms var(--ease-out-strong);
   @starting-style {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(8px);
   }
 }
 .toast[data-leaving="true"] {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(8px);
   transition-duration: 150ms;
 }
 
@@ -130,6 +130,18 @@ body {
 }
 .state-faded {
   opacity: 0.3;
+}
+
+/* Minimize mode: a new block's chip fades in as its states recolour. Opacity only (decoration). */
+.block-chip {
+  transition:
+    opacity 200ms ease,
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+  @starting-style {
+    opacity: 0;
+  }
 }
 
 /* The tape head slides to the next cell. */

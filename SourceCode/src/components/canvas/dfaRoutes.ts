@@ -19,17 +19,18 @@ const dfaShapes = new WeakMap<DFA, Map<string, DfaShape>>()
  * @param layout - Top-left position of each state.
  * @param states - The states drawn.
  * @param transitions - The transitions drawn.
+ * @param captionOf - Caption per state (default: the NFA subset); routes keep clear of them.
  * @returns The merged edges and their routes (kept clear of captions).
  */
-export function dfaRoutes(dfa: DFA, layout: Record<string, XY>, states: string[], transitions: DFA['transitions']): DfaShape {
-  const key = `${states.join(',')}|${JSON.stringify(transitions)}`
+export function dfaRoutes(dfa: DFA, layout: Record<string, XY>, states: string[], transitions: DFA['transitions'], captionOf?: Readonly<Record<string, string>>): DfaShape {
+  const key = `${captionOf ? 'c' : 's'}|${states.join(',')}|${JSON.stringify(transitions)}`
   let cache = dfaShapes.get(dfa)
   if (!cache) dfaShapes.set(dfa, (cache = new Map()))
   const hit = cache.get(key)
   if (hit) return hit
   const merged = mergedEdges(dfaToENFA({ ...dfa, states, transitions }))
   const centres = new Map<string, XY>(states.map((s) => [s, { x: (layout[s]?.x ?? 0) + R, y: (layout[s]?.y ?? 0) + R }]))
-  const captions = Object.fromEntries(states.map((s) => [s, dfaCaption(dfa, s)]))
+  const captions = captionOf ?? Object.fromEntries(states.map((s) => [s, dfaCaption(dfa, s)]))
   const shape = { merged, routes: routeAll(merged, centres, captionRects(layout, captions, states)) }
   cache.set(key, shape)
   return shape

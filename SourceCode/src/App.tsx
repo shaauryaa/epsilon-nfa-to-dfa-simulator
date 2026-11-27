@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { ReactFlowProvider } from 'reactflow'
 import { BottomPanel } from './components/BottomPanel'
 import { LeftSidebar } from './components/builder/LeftSidebar'
 import { GraphView } from './components/canvas/GraphView'
 import { ConvertCanvas } from './components/convert/ConvertCanvas'
+import { MinimizeCanvas } from './components/minimize/MinimizeCanvas'
 import { TestCanvas } from './components/test/TestCanvas'
 import { AboutDialog, DocsDialog } from './components/InfoDialogs'
 import { RightSidebar } from './components/inspector/RightSidebar'
@@ -11,6 +12,7 @@ import { Navbar } from './components/Navbar'
 import { SidebarIcon } from './components/ui/Icons'
 import { Toaster } from './components/ui/Toaster'
 import { TABS, useApp } from './store/automaton'
+import { useDocs } from './store/docs'
 import { toast } from './store/toasts'
 
 /**
@@ -61,15 +63,15 @@ function BuilderRail({ onOpen }: { onOpen: () => void }) {
  */
 function App() {
   const tab = useApp((s) => s.activeTab)
-  const [dialog, setDialog] = useState<'docs' | 'about' | null>(null)
-  const openDocs = useCallback(() => setDialog('docs'), [])
-  const openAbout = useCallback(() => setDialog('about'), [])
-  const close = useCallback(() => setDialog(null), [])
+  const dialog = useDocs((s) => s.dialog)
+  const openDocs = useDocs((s) => s.showDocs)
+  const openAbout = useDocs((s) => s.showAbout)
+  const close = useDocs((s) => s.close)
   const [builderChoice, setBuilderChoice] = useState<boolean | null>(null)
   useHistoryShortcuts()
   const convert = tab === 'convert'
-  const split = convert || tab === 'test'
-  // In Convert and Test the builder starts collapsed at every width, so both canvases get the room; the rail reopens it.
+  const split = convert || tab === 'test' || tab === 'minimize'
+  // In Convert, Test and Minimize the builder starts collapsed at every width, so both canvases get the room; the rail reopens it.
   const builderOpen = !split || (builderChoice ?? false)
   const geometry = {
     '--left-w': builderOpen ? '360px' : '44px',
@@ -78,21 +80,24 @@ function App() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-50 text-slate-900" style={geometry}>
-      <Navbar onDocs={openDocs} onAbout={openAbout} />
+      <Navbar onDocs={() => openDocs()} onAbout={openAbout} />
       <main id="workspace" role="tabpanel" aria-labelledby={`tab-${tab}`} className="flex min-h-0 flex-1 overflow-hidden">
         <h2 className="sr-only">{TABS.find((t) => t.id === tab)?.label}</h2>
         {builderOpen ? <LeftSidebar onCollapse={split ? () => setBuilderChoice(false) : undefined} /> : <BuilderRail onOpen={() => setBuilderChoice(true)} />}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <section aria-label={split ? 'ε-NFA and DFA diagrams' : 'State diagram'} className="min-h-0 flex-1">
+          <section aria-label={tab === 'minimize' ? 'DFA and minimal DFA diagrams' : split ? 'ε-NFA and DFA diagrams' : 'State diagram'} className="relative min-h-0 flex-1">
             {convert ? (
               <ConvertCanvas />
             ) : tab === 'test' ? (
               <TestCanvas />
+            ) : tab === 'minimize' ? (
+              <MinimizeCanvas />
             ) : (
               <ReactFlowProvider>
                 <GraphView />
               </ReactFlowProvider>
             )}
+            <Toaster />
           </section>
           <BottomPanel />
         </div>
@@ -100,7 +105,6 @@ function App() {
       </main>
       <DocsDialog open={dialog === 'docs'} onClose={close} />
       <AboutDialog open={dialog === 'about'} onClose={close} />
-      <Toaster />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useApp } from '../../store/automaton'
 import { ConvertPanel } from '../convert/ConvertPanel'
-import { PlaceholderTab } from '../PlaceholderTab'
+import { MinimizePanel } from '../minimize/MinimizePanel'
 import { TestPanel } from '../test/TestPanel'
 import { FormalDefinition } from './FormalDefinition'
 import { Stats } from './Stats'
@@ -22,7 +22,7 @@ export function RightSidebar() {
       ) : tab === 'test' ? (
         <TestPanel />
       ) : (
-        <PlaceholderTab tab={tab} />
+        <MinimizePanel />
       )}
     </aside>
   )

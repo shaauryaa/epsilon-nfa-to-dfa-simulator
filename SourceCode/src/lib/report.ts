@@ -1,12 +1,14 @@
 /**
  * Builds the "full report" PDF: the input ε-NFA (5-tuple, table, diagram),
  * the ε-closure table, every subset-construction step, the DFA table and
- * diagram, the subset-to-name mapping and a minimisation summary. jsPDF, the
+ * diagram, the subset-to-name mapping and the minimisation rounds with the
+ * minimal DFA table and an equivalence check. jsPDF, the
  * table plugin and the Unicode font are loaded only when a report is
  * requested.
  */
 
-import { EPSILON, formatSet, type ENFA, type MinimizeResult, type SubsetResult } from '../core'
+import { checkEquivalence, EPSILON, formatSet, type ENFA, type MinimizeResult, type SubsetResult } from '../core'
+import { buildMinimizeView, equivalenceLine, partitionText, showWord } from '../model/minimizeView'
 import { deadStateNote, minimisationSummary } from '../model/reportText'
 import { statusLabel, verdictLabel, type BatchRow } from '../model/testRun'
 import type { Diagram } from '../model/svg'
@@ -221,14 +223,31 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
   heading('6. Minimisation')
   const summary = minimisationSummary(dfa, input.minimized)
   para(summary.text)
-  if (summary.removed.length > 0) para(`Unreachable states removed first: ${summary.removed.join(', ')}.`)
+  const walk = buildMinimizeView(dfa)
+  para('Partition refinement (Moore): remove unreachable states, complete the DFA, start from the final and non-final blocks, and split a block whenever its members move to different blocks on some symbol, until a round splits nothing.')
+  table(
+    ['Step', 'Blocks', 'What happens'],
+    walk.steps.slice(0, MAX_TABLE_ROWS).map((st) => [
+      st.kind === 'unreachable' ? 'Round −1' : st.kind === 'complete' ? 'Completion' : st.kind === 'done' ? 'Result' : `Round ${st.round}`,
+      st.blocks ? partitionText(st.blocks, 12) : '—',
+      [st.text, ...st.splits.flatMap((sp) => (sp.witness ? [`Witness ${showWord(sp.witness.word, dfa.alphabet)}: from ${sp.witness.accepting} it reaches a final state, from ${sp.witness.rejecting} it does not.`] : []))].join(' '),
+    ]),
+  )
   if (summary.merged.length > 0) {
     table(['Merged group', 'New state'], summary.merged.slice(0, MAX_TABLE_ROWS).map((line) => line.split(' → ')))
   } else {
-    para('No states were merged.')
+    para('Already minimal: no states were merged.')
   }
   const min = input.minimized.dfa
-  para(`Minimal DFA: ${min.states.length} state${min.states.length === 1 ? '' : 's'}, start ${min.start}, final ${min.finals.length > 0 ? min.finals.join(', ') : 'none'}.`)
+  para(`Minimal DFA: ${min.states.length} state${min.states.length === 1 ? '' : 's'} (the converted DFA has ${dfa.states.length}), start ${min.start}, final ${min.finals.length > 0 ? min.finals.join(', ') : 'none'}.`)
+  table(
+    ['State', ...min.alphabet],
+    min.states.slice(0, MAX_TABLE_ROWS).map((st) => [
+      `${st === min.start ? '→ ' : ''}${min.finals.includes(st) ? '* ' : ''}${st}`,
+      ...min.alphabet.map((a) => min.transitions[st]?.[a] ?? '—'),
+    ]),
+  )
+  para(equivalenceLine(checkEquivalence(dfa, min, 8), 8, dfa.alphabet))
 
   const tests = input.tests
   if (tests) {

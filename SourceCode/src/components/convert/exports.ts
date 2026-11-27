@@ -10,6 +10,7 @@ import {
   exportFileName,
   minimizeDFA,
   stepLogText,
+  type DFA,
 } from '../../core'
 import { saveBlob, saveText, svgToPng } from '../../lib/download'
 import { automatonSVG, type Diagram } from '../../model/svg'
@@ -20,6 +21,8 @@ import { toast } from '../../store/toasts'
 import { dfaCaptions, layoutDFA } from '../../model/dfaLayout'
 import { MAX_DRAWN_DFA_STATES } from '../../model/largeDfa'
 import { reportTests } from '../test/testExports'
+import { getMinimization } from '../../store/minimize'
+import { minStateLabel } from '../../model/minimizeView'
 
 /** DFA download formats offered on the result card. */
 export type DfaFormat = 'jff' | 'json' | 'txt' | 'dot' | 'csv' | 'png' | 'svg' | 'py' | 'js'
@@ -47,6 +50,40 @@ export function machineName(): { slug: string; title: string } {
 function current() {
   const { nfa, subset } = useApp.getState()
   return getConversion(nfa, subset, useConvert.getState().showDead)
+}
+
+/** Which DFA a download is for: the converted DFA or its minimal DFA. */
+export type DfaSource = 'dfa' | 'min'
+
+/** The minimal DFA of the converted DFA, as the Minimize tab shows it. */
+function currentMin() {
+  const conv = current()
+  return conv ? getMinimization(conv.result.dfa).view : null
+}
+
+/** Captions of a minimal DFA: the merged name where it does not fit in the circle. */
+function minCaptions(dfa: DFA): Record<string, string> {
+  const captions: Record<string, string> = {}
+  for (const s of dfa.states) {
+    const c = minStateLabel(s).caption
+    if (c) captions[s] = c
+  }
+  return captions
+}
+
+/** The minimal DFA's diagram: plain states, long merged names as captions. */
+export function minDiagram(): Diagram | null {
+  const view = currentMin()
+  if (!view || view.large) return null
+  const dfa = view.result.dfa
+  const captions = minCaptions(dfa)
+  return automatonSVG({
+    machine: dfaToENFA(dfa),
+    positions: layoutDFA(dfa, captions),
+    captions,
+    dead: dfa.deadState,
+    title: `Minimal DFA — ${machineName().title}`,
+  })
 }
 
 /** The ε-NFA diagram as on the canvas. */
@@ -84,20 +121,23 @@ export async function run(label: string, fn: () => Promise<string | null> | stri
 }
 
 /**
- * Downloads the converted DFA in one format.
+ * Downloads the converted DFA, or its minimal DFA, in one format.
  *
  * @param format - See {@link DFA_FORMATS}.
+ * @param which - `dfa` (default) for the converted DFA, `min` for the minimal DFA.
  */
-export function downloadDfa(format: DfaFormat): Promise<void> {
+export function downloadDfa(format: DfaFormat, which: DfaSource = 'dfa'): Promise<void> {
   return run('download', async () => {
     const conv = current()
     if (!conv) return null
-    const dfa = conv.result.dfa
-    const { slug, title } = machineName()
-    const name = exportFileName(slug, 'dfa', format, new Date())
+    const minView = which === 'min' ? currentMin() : null
+    const dfa = minView ? minView.result.dfa : conv.result.dfa
+    const { slug, title: baseTitle } = machineName()
+    const title = minView ? `${baseTitle} (minimal)` : baseTitle
+    const name = exportFileName(slug, minView ? 'min-dfa' : 'dfa', format, new Date())
     switch (format) {
       case 'jff':
-        saveText(name, dfaToJFLAP(dfa, layoutDFA(dfa)), 'application/xml')
+        saveText(name, dfaToJFLAP(dfa, minView ? layoutDFA(dfa, minCaptions(dfa)) : layoutDFA(dfa)), 'application/xml')
         break
       case 'json':
         saveText(name, dfaToJSON(dfa), 'application/json')
@@ -119,7 +159,7 @@ export function downloadDfa(format: DfaFormat): Promise<void> {
         break
       case 'png':
       case 'svg': {
-        const d = dfaDiagram()
+        const d = minView ? minDiagram() : dfaDiagram()
         if (!d) throw new Error(`the DFA has ${dfa.states.length} states, more than the ${MAX_DRAWN_DFA_STATES} that can be drawn. Use CSV or JSON instead.`)
         await saveDiagram(d, name, format)
         break

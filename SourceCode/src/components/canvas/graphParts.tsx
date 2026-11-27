@@ -51,6 +51,10 @@ export interface StateNodeData {
   motionMs?: number
   /** Test mode: this state's branch died on the current symbol; drawn faded. */
   faded?: boolean
+  /** Minimize mode: the colour of the state's block (hex). Ignored while a Convert role colours the state. */
+  tint?: { border: string; fill: string; text: string }
+  /** Minimize mode: a soft halo marks the members of a block that is being split. */
+  halo?: boolean
 }
 
 /** A token travelling along an edge during the move(S, a) micro-step. */
@@ -101,7 +105,9 @@ export const StateNode = memo(function StateNode({ data, selected }: NodeProps<S
   const moved = !!data.role?.moved
   const shadow = moved
     ? '0 0 0 3px #fff, 0 0 0 6px #2563eb'
-    : data.highlight === 'source'
+    : data.halo
+      ? '0 0 0 6px rgb(37 99 235 / 0.22)'
+      : data.highlight === 'source'
       ? '0 0 0 4px rgb(37 99 235 / 0.18)'
       : data.highlight === 'target'
         ? '0 0 0 3px rgb(37 99 235 / 0.12)'
@@ -110,6 +116,8 @@ export const StateNode = memo(function StateNode({ data, selected }: NodeProps<S
           : '0 1px 4px rgb(15 23 42 / 0.08)'
   const motion = { '--motion-ms': `${data.motionMs ?? 600}ms` } as CSSProperties
   const delay = { '--role-delay': `${data.roleDelay ?? 0}ms` } as CSSProperties
+  const tint = data.tint && !data.role?.current && !data.role?.closure ? data.tint : null
+  const tintCircle: CSSProperties = tint ? { borderColor: tint.border, backgroundColor: tint.fill } : {}
   return (
     <div className={`group relative state-node ${data.entering ? 'node-enter' : ''} ${data.faded ? 'state-faded' : ''}`} style={{ width: NODE_SIZE, height: NODE_SIZE, ...motion }}>
       {data.start && (
@@ -125,12 +133,14 @@ export const StateNode = memo(function StateNode({ data, selected }: NodeProps<S
       {!!data.flash && <span key={`f${data.flash}`} aria-hidden="true" className="state-flash pointer-events-none absolute inset-0 rounded-full" />}
       <div
         className={`state-circle relative grid size-full place-items-center rounded-full border-[1.8px] ${look.border} ${look.fill}`}
-        style={{ boxShadow: shadow, ...delay }}
+        style={{ boxShadow: shadow, ...delay, ...tintCircle }}
       >
-        {data.final && <div aria-hidden="true" className={`absolute inset-[4px] rounded-full border-[1.6px] ${look.border}`} />}
+        {data.final && (
+          <div aria-hidden="true" className={`state-circle absolute inset-[4px] rounded-full border-[1.6px] ${look.border}`} style={tint ? { borderColor: tint.border, ...delay } : undefined} />
+        )}
         <span
           className={`relative max-w-[44px] truncate font-mono font-semibold tracking-tight select-none ${look.text}`}
-          style={{ fontSize: size }}
+          style={{ fontSize: size, ...(tint ? { color: tint.text } : {}) }}
           title={data.label}
         >
           {data.label}

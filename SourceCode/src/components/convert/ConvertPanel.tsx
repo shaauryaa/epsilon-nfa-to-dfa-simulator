@@ -6,6 +6,7 @@ import { useApp } from '../../store/automaton'
 import { useConvert } from '../../store/convert'
 import type { PlayerStore } from '../../store/player'
 import { Section } from '../builder/Section'
+import { TheoryLink } from '../TheoryLink'
 import { Button } from '../ui/Button'
 import {
   AlertIcon,
@@ -22,7 +23,7 @@ import {
   TableIcon,
 } from '../ui/Icons'
 import { Popover } from '../ui/Popover'
-import { DFA_FORMATS, downloadDfa } from './exports'
+import { DFA_FORMATS, downloadDfa, type DfaSource } from './exports'
 import { useConversion, useConvertView, type ConvertView } from './useConversion'
 
 export function ControlButton({ label, onClick, disabled, primary, children }: { label: string; onClick: () => void; disabled?: boolean; primary?: boolean; children: ReactNode }) {
@@ -136,6 +137,7 @@ function Explanation({ view }: { view: ConvertView }) {
       <p aria-live="polite" className="mt-1.5 min-h-[3.75em] text-[17px] leading-snug font-medium text-pretty text-slate-900">
         {view.frame.text}
       </p>
+      <TheoryLink topic={view.frame.phase === 'closure' ? 'closure' : view.frame.phase === 'move' ? 'move' : 'subset'} />
     </section>
   )
 }
@@ -285,8 +287,12 @@ function ConvertStats({ result }: { result: SubsetResult }) {
   )
 }
 
-/** "Download DFA": every format with a one-line description (pictures are left out for DFAs too large to draw). */
-function DownloadDfaButton({ large = false }: { large?: boolean }) {
+/**
+ * "Download DFA": every format with a one-line description (pictures are
+ * left out for DFAs too large to draw). With `which="min"` it downloads the
+ * minimal DFA instead.
+ */
+export function DownloadDfaButton({ large = false, which = 'dfa', label = 'Download DFA' }: { large?: boolean; which?: DfaSource; label?: string }) {
   const formats = large ? DFA_FORMATS.filter((f) => f.id !== 'png' && f.id !== 'svg') : DFA_FORMATS
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const close = () => setAnchor(null)
@@ -299,10 +305,10 @@ function DownloadDfaButton({ large = false }: { large?: boolean }) {
         aria-expanded={!!anchor}
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
       >
-        <DownloadIcon size={15} /> Download DFA
+        <DownloadIcon size={15} /> {label}
       </Button>
-      <Popover open={!!anchor} anchor={anchor} onClose={close} label="Download DFA" width={300}>
-        <ul role="menu" aria-label="Download DFA as" className="-m-1 flex max-h-[60vh] flex-col overflow-y-auto">
+      <Popover open={!!anchor} anchor={anchor} onClose={close} label={label} width={300}>
+        <ul role="menu" aria-label={`${label} as`} className="-m-1 flex max-h-[60vh] flex-col overflow-y-auto">
           {formats.map((f, i) => (
             <li key={f.id} role="none">
               <button
@@ -311,7 +317,7 @@ function DownloadDfaButton({ large = false }: { large?: boolean }) {
                 autoFocus={i === 0}
                 onClick={() => {
                   close()
-                  void downloadDfa(f.id)
+                  void downloadDfa(f.id, which)
                 }}
                 className="w-full rounded-md px-2 py-1.5 text-left hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none"
               >
