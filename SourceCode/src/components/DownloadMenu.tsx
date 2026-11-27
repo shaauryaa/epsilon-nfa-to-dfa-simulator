@@ -17,7 +17,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       {
         label: 'Download full report (PDF)',
-        hint: 'ε-NFA, ε-closures, every step, the DFA and the mapping.',
+        hint: 'ε-NFA, ε-closures, every step, the DFA, the mapping and minimisation.',
         icon: <FileIcon size={15} />,
         run: downloadReport,
       },

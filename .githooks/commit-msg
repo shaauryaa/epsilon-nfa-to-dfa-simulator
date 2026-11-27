@@ -1,9 +1,33 @@
 #!/bin/sh
-# Rejects commit messages containing third-party attribution.
+# Keeps commit messages free of third-party attribution, so every commit
+# shows only its author. Rejects:
+#   - any "Co-Authored-By:" trailer,
+#   - any line starting with "Generated with",
+#   - any no-reply e-mail address (noreply@..., ...@users.noreply...)
+#     other than the committer's own.
 # Enable with: git config core.hooksPath .githooks
-if grep -qiE 'co-authored-by|claude|anthropic|claude\.ai' "$1"; then
-  echo "commit-msg hook: message contains a forbidden attribution term" >&2
-  echo "(Co-Authored-By, Claude, Anthropic or claude.ai). Commit rejected." >&2
+
+msg=$(grep -v '^#' "$1")
+own=$(git config user.email | tr 'A-Z' 'a-z')
+
+fail() {
+  echo "commit-msg hook: $1" >&2
+  echo "Commit messages must credit only the author. Remove that line and commit again." >&2
   exit 1
+}
+
+if printf '%s\n' "$msg" | grep -qi '^[[:space:]]*co-authored-by:'; then
+  fail 'the message has a Co-Authored-By trailer.'
 fi
+
+if printf '%s\n' "$msg" | grep -qi '^[[:space:]]*generated with'; then
+  fail 'the message has a "Generated with" line.'
+fi
+
+for addr in $(printf '%s\n' "$msg" | grep -oiE '[[:alnum:]._%+-]+@[[:alnum:].-]+' | grep -i 'noreply' | tr 'A-Z' 'a-z'); do
+  if [ "$addr" != "$own" ]; then
+    fail "the message mentions $addr, which is not the author's address."
+  fi
+done
+
 exit 0

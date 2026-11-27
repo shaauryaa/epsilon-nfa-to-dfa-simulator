@@ -470,9 +470,8 @@ function LargeConvertPanel({ conversion }: { conversion: Conversion }) {
   return (
     <>
       <section aria-label="Large DFA" className="border-b border-slate-200 px-4 py-4">
-        <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-pretty text-slate-700">
-          {largeDfaNotice(dfa.states.length, dfa.deadState !== null)}
-        </p>
+        <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">Subset construction</h2>
+        <p className="sr-only">{largeDfaNotice(dfa.states.length, dfa.deadState !== null)}</p>
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           <dt className="text-slate-500">Start</dt>
           <dd className="font-mono font-semibold text-slate-900">{dfa.start}</dd>

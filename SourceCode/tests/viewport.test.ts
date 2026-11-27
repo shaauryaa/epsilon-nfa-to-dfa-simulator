@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { layoutLR, NODE_SIZE } from '../src/graph/layout'
 import { mergedEdges } from '../src/model/graph'
-import { drawingBounds, FIT_MAX_ZOOM, FIT_MIN_ZOOM, fitViewport, panTarget, READABLE_ZOOM, TOP_INSET } from '../src/model/viewport'
+import { drawingBounds, FIT_MAX_ZOOM, FIT_MIN_ZOOM, fitViewport, followViewport, panTarget, READABLE_ZOOM, TOP_INSET } from '../src/model/viewport'
 import { getPreset } from '../src/presets'
 
 const thompson = getPreset('thompson-abb')!.nfa
@@ -86,5 +86,32 @@ describe('panTarget', () => {
     const b = { x: 0, y: 0, width: 2000, height: 50 }
     const c = panTarget(view, 800, 600, b)!
     expect(c.x).toBe(1000)
+  })
+})
+
+describe('followViewport', () => {
+  const view = { x: 0, y: 0, zoom: 1 }
+  it('does nothing when the states are in view', () => {
+    expect(followViewport(view, 800, 600, { x: 100, y: 100, width: 200, height: 100 })).toBeNull()
+  })
+
+  it('pans without zooming when the states fit', () => {
+    const v = followViewport(view, 800, 600, { x: 900, y: 100, width: 200, height: 100 })!
+    expect(v.zoom).toBe(1)
+    const s = onScreen({ x: 900, y: 100, width: 200, height: 100 }, v)
+    expect(s.left).toBeGreaterThanOrEqual(24)
+    expect(s.right).toBeLessThanOrEqual(800 - 24)
+  })
+
+  it('zooms out just enough (never in, never below the Fit floor) for a wide set', () => {
+    const wide = { x: 0, y: 0, width: 1200, height: 100 }
+    const v = followViewport(view, 800, 600, wide)!
+    expect(v.zoom).toBeLessThan(1)
+    expect(v.zoom).toBeGreaterThanOrEqual(FIT_MIN_ZOOM)
+    const s = onScreen(wide, v)
+    expect(s.left).toBeGreaterThanOrEqual(23.9)
+    expect(s.right).toBeLessThanOrEqual(800 - 23.9)
+    expect(followViewport({ x: 0, y: 0, zoom: 0.5 }, 800, 600, { x: 100, y: 200, width: 100, height: 50 })).toBeNull()
+    expect(followViewport(view, 800, 600, { x: 0, y: 0, width: 50000, height: 10 })!.zoom).toBe(FIT_MIN_ZOOM)
   })
 })

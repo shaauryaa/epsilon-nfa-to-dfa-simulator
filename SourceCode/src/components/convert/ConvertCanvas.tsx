@@ -10,7 +10,7 @@ import { useApp } from '../../store/automaton'
 import { useConvert } from '../../store/convert'
 import { EDGE_COLOR } from '../canvas/colors'
 import { arrow, FIT, fitReadable, MINIMAP_MIN_STATES, prefersReducedMotion, routeAll } from '../canvas/flow'
-import { circlesBox, panTarget, TOP_INSET } from '../../model/viewport'
+import { circlesBox, followViewport } from '../../model/viewport'
 import { MIN_ZOOM, StateNode, TransitionEdge, type StateNodeData, type TransitionEdgeData } from '../canvas/graphParts'
 import { CanvasMiniMap, MapToggle, toolButton } from '../canvas/GraphView'
 import { Button } from '../ui/Button'
@@ -84,7 +84,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
     return () => cancelAnimationFrame(id)
   }, [fitKey, rf])
 
-  // Follow playback: pan (never zoom) just enough to bring the frame's states into view.
+  // Follow playback: pan (and zoom out only if needed) to bring the frame's states into view.
   const focusKey = focus && focus.length > 0 ? focus.join(',') : ''
   useEffect(() => {
     const el = wrapper.current
@@ -94,11 +94,8 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
     if (!box) return
     // Room for captions below and self-loop labels above.
     const padded = { x: box.x - 20, y: box.y - 40, width: box.width + 40, height: box.height + 76 }
-    const vp = rf.getViewport()
-    const target = panTarget(vp, el.clientWidth, el.clientHeight, padded)
-    if (!target) return
-    // setCenter centres in the whole pane; shift so the point sits in the middle of the area below the title bar.
-    rf.setCenter(target.x, target.y - TOP_INSET / 2 / vp.zoom, { zoom: vp.zoom, duration: prefersReducedMotion() ? 0 : FOLLOW_MS })
+    const next = followViewport(rf.getViewport(), el.clientWidth, el.clientHeight, padded)
+    if (next) rf.setViewport(next, { duration: prefersReducedMotion() ? 0 : FOLLOW_MS })
   }, [focusKey, rf])
 
   useEffect(() => {
@@ -285,7 +282,7 @@ function NfaPane({ view }: { view: ConvertView | null }) {
       nodes={nodes}
       edges={edges}
       fitKey={nfa.states.join(',')}
-      legend={<NfaLegend />}
+      legend={view ? <NfaLegend /> : undefined}
       stateCount={nfa.states.length}
       focus={live && !pickedTrace ? [...new Set([...frame.current, ...frame.moved, ...frame.closure])] : undefined}
     />

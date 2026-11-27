@@ -206,3 +206,34 @@ export function panTarget(view: Viewport, width: number, height: number, box: Re
 export function circlesBox(positions: readonly XY[]): Rect | null {
   return drawingBounds({ positions })
 }
+
+/**
+ * The viewport that keeps a box (the states of the current animation frame)
+ * in view during playback. Pans only when the box fits at the current zoom;
+ * otherwise zooms out just enough (never below {@link FIT_MIN_ZOOM}) and
+ * centres it. Never zooms in.
+ *
+ * @param view - The current viewport.
+ * @param width - Pane width in px.
+ * @param height - Pane height in px.
+ * @param box - Box to show, in graph coordinates.
+ * @param margin - Space to keep from the pane edges, in px (default 24).
+ * @returns The new viewport, or `null` when the box is already in view.
+ * @throws Never throws.
+ */
+export function followViewport(view: Viewport, width: number, height: number, box: Rect, margin = 24): Viewport | null {
+  const visW = width - 2 * margin
+  const visH = height - TOP_INSET - margin
+  const fits = box.width * view.zoom <= visW && box.height * view.zoom <= visH
+  if (fits) {
+    const c = panTarget(view, width, height, box, margin)
+    if (!c) return null
+    return { zoom: view.zoom, x: width / 2 - c.x * view.zoom, y: (height + TOP_INSET) / 2 - c.y * view.zoom }
+  }
+  const zoom = Math.max(FIT_MIN_ZOOM, Math.min(view.zoom, visW / Math.max(1, box.width), visH / Math.max(1, box.height)))
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  const next = { zoom, x: width / 2 - cx * zoom, y: (height + TOP_INSET) / 2 - cy * zoom }
+  const same = Math.abs(next.zoom - view.zoom) < 1e-3 && Math.abs(next.x - view.x) < 1 && Math.abs(next.y - view.y) < 1
+  return same ? null : next
+}

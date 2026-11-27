@@ -1,11 +1,13 @@
 /**
  * Builds the "full report" PDF: the input ε-NFA (5-tuple, table, diagram),
  * the ε-closure table, every subset-construction step, the DFA table and
- * diagram, and the subset-to-name mapping. jsPDF, the table plugin and the
- * Unicode font are loaded only when a report is requested.
+ * diagram, the subset-to-name mapping and a minimisation summary. jsPDF, the
+ * table plugin and the Unicode font are loaded only when a report is
+ * requested.
  */
 
-import { EPSILON, formatSet, type ENFA, type SubsetResult } from '../core'
+import { EPSILON, formatSet, type ENFA, type MinimizeResult, type SubsetResult } from '../core'
+import { deadStateNote, minimisationSummary } from '../model/reportText'
 import type { Diagram } from '../model/svg'
 import { blobToDataURL, svgToPng } from './download'
 
@@ -15,10 +17,18 @@ export interface ReportInput {
   nfa: ENFA
   closures: Record<string, string[]>
   result: SubsetResult
+  /** Minimisation of `result.dfa`. */
+  minimized: MinimizeResult
+  /** Whether the "Show dead state ∅" switch was on. */
+  showDead: boolean
   nfaDiagram: Diagram
-  dfaDiagram: Diagram
+  /** `null` when the DFA is too large to draw. */
+  dfaDiagram: Diagram | null
   when: Date
 }
+
+/** Longest table printed in full; larger DFAs print this many rows and point to the CSV download. */
+const MAX_TABLE_ROWS = 200
 
 async function fontBase64(url: string): Promise<string> {
   const buf = await (await fetch(url)).arrayBuffer()
@@ -46,7 +56,7 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
     fontBase64(regularUrl),
     fontBase64(boldUrl),
     svgToPng(input.nfaDiagram.svg, input.nfaDiagram.width, input.nfaDiagram.height).then(blobToDataURL),
-    svgToPng(input.dfaDiagram.svg, input.dfaDiagram.width, input.dfaDiagram.height).then(blobToDataURL),
+    input.dfaDiagram ? svgToPng(input.dfaDiagram.svg, input.dfaDiagram.width, input.dfaDiagram.height).then(blobToDataURL) : Promise.resolve(null),
   ])
 
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
@@ -148,10 +158,12 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
     nfa.states.map((s) => [s, formatSet(closures[s] ?? [])]),
   )
 
+  const bigSteps = steps.length > MAX_TABLE_ROWS
   heading('3. Subset construction steps')
+  if (bigSteps) para(`${steps.length.toLocaleString()} steps; the first ${MAX_TABLE_ROWS} are listed. Download the step log for all of them.`)
   table(
     ['#', 'From', 'Symbol', 'move', 'ε-closure', 'To'],
-    steps.map((s) => [
+    steps.slice(0, MAX_TABLE_ROWS).map((s) => [
       String(s.index + 1),
       s.kind === 'start' ? 'start' : s.kind === 'done' ? 'done' : `${s.from} = ${formatSet(s.fromSet ?? [])}`,
       s.symbol ?? '',
@@ -160,33 +172,48 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
       s.to === null ? (s.kind === 'done' ? '' : '— (none)') : `${s.to}${s.isNew ? ' (new)' : ''}`,
     ]),
   )
-  for (const s of steps) para(`${s.index + 1}. ${s.explanation}`, 9)
+  if (!bigSteps) for (const s of steps) para(`${s.index + 1}. ${s.explanation}`, 9)
   y += 6
 
   heading('4. Resulting DFA')
   para(
     `${stats.dfaStates} DFA states from ${stats.nfaStates} NFA states (bound 2^${stats.nfaStates} = ${stats.upperBound}). Start ${dfa.start}; final ${
       dfa.finals.length > 0 ? dfa.finals.join(', ') : 'none'
-    }.${dfa.deadState ? ' ∅ is the dead state.' : ' No dead state is shown, so missing moves reject.'}`,
+    }. ${deadStateNote(dfa, input.showDead)}`,
   )
+  const bigDfa = dfa.states.length > MAX_TABLE_ROWS
+  if (bigDfa) para(`The first ${MAX_TABLE_ROWS} of ${dfa.states.length.toLocaleString()} states are listed; the CSV download has the whole table.`)
   table(
     ['State', ...dfa.alphabet],
-    dfa.states.map((s) => [
+    dfa.states.slice(0, MAX_TABLE_ROWS).map((s) => [
       `${s === dfa.start ? '→ ' : ''}${dfa.finals.includes(s) ? '* ' : ''}${s}`,
       ...dfa.alphabet.map((a) => dfa.transitions[s]?.[a] ?? '—'),
     ]),
   )
-  image(dfaPng, input.dfaDiagram)
+  if (dfaPng && input.dfaDiagram) image(dfaPng, input.dfaDiagram)
+  else para('The DFA has too many states to draw clearly, so its diagram is left out.')
 
   heading('5. Subset-to-name mapping')
   table(
     ['DFA state', 'NFA states', 'Role'],
-    dfa.states.map((s) => [
+    dfa.states.slice(0, MAX_TABLE_ROWS).map((s) => [
       s,
       formatSet(dfa.subsets[s] ?? []),
       [s === dfa.start ? 'start' : '', dfa.finals.includes(s) ? 'final' : '', s === dfa.deadState ? 'dead' : ''].filter(Boolean).join(', '),
     ]),
   )
+
+  heading('6. Minimisation')
+  const summary = minimisationSummary(dfa, input.minimized)
+  para(summary.text)
+  if (summary.removed.length > 0) para(`Unreachable states removed first: ${summary.removed.join(', ')}.`)
+  if (summary.merged.length > 0) {
+    table(['Merged group', 'New state'], summary.merged.slice(0, MAX_TABLE_ROWS).map((line) => line.split(' → ')))
+  } else {
+    para('No states were merged.')
+  }
+  const min = input.minimized.dfa
+  para(`Minimal DFA: ${min.states.length} state${min.states.length === 1 ? '' : 's'}, start ${min.start}, final ${min.finals.length > 0 ? min.finals.join(', ') : 'none'}.`)
 
   const pages = doc.getNumberOfPages()
   for (let i = 1; i <= pages; i++) {

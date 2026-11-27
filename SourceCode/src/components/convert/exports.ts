@@ -8,6 +8,7 @@ import {
   dfaToPython,
   dfaToText,
   exportFileName,
+  minimizeDFA,
   stepLogText,
 } from '../../core'
 import { saveBlob, saveText, svgToPng } from '../../lib/download'
@@ -153,13 +154,22 @@ export function downloadReport(): Promise<void> {
   return run('report', async () => {
     const conv = current()
     const { nfa, closures } = useApp.getState()
-    const dfaImg = dfaDiagram()
-    if (!conv || !closures || !dfaImg) return null
+    if (!conv || !closures) return null
     toast({ message: 'Preparing the report…', tone: 'info' })
     const { buildReport } = await import('../../lib/report')
     const { slug, title } = machineName()
     const when = new Date()
-    const blob = await buildReport({ name: title, nfa, closures, result: conv.result, nfaDiagram: nfaDiagram(), dfaDiagram: dfaImg, when })
+    const blob = await buildReport({
+      name: title,
+      nfa,
+      closures,
+      result: conv.result,
+      minimized: minimizeDFA(conv.result.dfa),
+      showDead: useConvert.getState().showDead,
+      nfaDiagram: nfaDiagram(),
+      dfaDiagram: dfaDiagram(),
+      when,
+    })
     const name = exportFileName(slug, 'report', 'pdf', when)
     saveBlob(name, blob)
     return name
