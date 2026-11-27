@@ -22,14 +22,14 @@ export interface ConvertView {
   live: boolean
 }
 
-/** The player's current step, frame and DFA progress. */
+/** The player's current step, frame and DFA progress; `null` while there is nothing to animate (errors, or a large DFA). */
 export function useConvertView(): ConvertView | null {
   const conversion = useConversion()
   const stepIndex = useConvert((s) => s.step)
   const frameIndex = useConvert((s) => s.frame)
   const live = useConvert((s) => s.live)
   return useMemo(() => {
-    if (!conversion) return null
+    if (!conversion || conversion.large) return null
     const { result, plan } = conversion
     const step = result.steps[Math.min(stepIndex, result.steps.length - 1)]
     const frames = plan[step.index]
@@ -64,7 +64,7 @@ export function useConvertClock(): void {
   useEffect(() => {
     if (conversion === loaded) return
     loaded = conversion
-    load(conversion ? conversion.plan.map((f) => f.length) : [])
+    load(conversion && !conversion.large ? conversion.plan.map((f) => f.length) : [])
   }, [conversion, load])
 
   useEffect(() => {

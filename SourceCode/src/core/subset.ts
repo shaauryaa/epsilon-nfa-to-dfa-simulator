@@ -20,6 +20,35 @@ export interface SubsetOptions {
    * means "reject".
    */
   includeDeadState?: boolean
+  /**
+   * Largest number of DFA states (including ∅) to build before giving up.
+   * Defaults to {@link MAX_DFA_STATES}. Must be a positive integer.
+   */
+  maxStates?: number
+}
+
+/**
+ * Default cap on the number of DFA states subset construction builds. A
+ * 13-state ε-NFA can already need 2¹² = 4096 states; past this the
+ * construction stops with a {@link StateLimitError} instead of freezing the
+ * page.
+ */
+export const MAX_DFA_STATES = 4096
+
+/** Thrown by {@link subsetConstruction} when the DFA would exceed the state cap. */
+export class StateLimitError extends Error {
+  /** The cap that was reached. */
+  readonly limit: number
+  /** Number of NFA states of the input. */
+  readonly nfaStates: number
+  constructor(limit: number, nfaStates: number) {
+    super(
+      `Subset construction stopped at ${limit.toLocaleString('en-US')} DFA states. This ${nfaStates}-state ε-NFA needs more (up to 2^${nfaStates}), which is too many to build in the browser.`,
+    )
+    this.name = 'StateLimitError'
+    this.limit = limit
+    this.nfaStates = nfaStates
+  }
 }
 
 /** One recorded step of subset construction. */
@@ -101,14 +130,22 @@ function now(): number {
  * NFA states) and usually far fewer. NFA subsets are compared as sorted
  * (declaration-order) lists.
  *
+ * Work is bounded: at most `maxStates` DFA states are built (default
+ * {@link MAX_DFA_STATES}), so a 2ⁿ blow-up stops with an error instead of
+ * running for minutes.
+ *
  * @param nfa - A valid ε-NFA (see `validateENFA`).
  * @param options - See {@link SubsetOptions}.
  * @returns The DFA, the step log, and size/time statistics.
  * @throws {InvalidAutomatonError} If the ε-NFA has validation errors.
+ * @throws {StateLimitError} If the DFA would have more than `maxStates` states.
+ * @throws {RangeError} If `maxStates` is not a positive integer.
  */
 export function subsetConstruction(nfa: ENFA, options: SubsetOptions = {}): SubsetResult {
   const t0 = now()
   const includeDeadState = options.includeDeadState ?? true
+  const maxStates = options.maxStates ?? MAX_DFA_STATES
+  if (!Number.isInteger(maxStates) || maxStates < 1) throw new RangeError(`maxStates must be a positive integer, got ${maxStates}`)
   assertValidENFA(nfa)
 
   const finalSet = new Set(nfa.finals)
@@ -127,6 +164,7 @@ export function subsetConstruction(nfa: ENFA, options: SubsetOptions = {}): Subs
   let letters = 0
 
   const addState = (subset: string[]): string => {
+    if (dfa.states.length >= maxStates) throw new StateLimitError(maxStates, nfa.states.length)
     const name = subset.length === 0 ? DEAD_STATE : dfaStateName(letters++)
     nameOf.set(subset.join(','), name)
     dfa.states.push(name)

@@ -7,6 +7,7 @@
 import { EPSILON, type ENFA } from '../core'
 import { NODE_SIZE, type XY } from '../graph/layout'
 import { routeAll } from '../graph/routing'
+import { CAPTION, captionRects } from './dfaLayout'
 import { mergedEdges } from './graph'
 
 /** Input for {@link automatonSVG}. */
@@ -54,8 +55,9 @@ export function automatonSVG(input: DiagramInput): Diagram {
   const states = [...new Set(machine.states)].filter((s) => positions[s])
   const centres = new Map<string, XY>(states.map((s) => [s, { x: positions[s].x + R, y: positions[s].y + R }]))
   const edges = mergedEdges(machine).filter((e) => centres.has(e.source) && centres.has(e.target))
-  const avoid = Object.keys(captions).length > 0 ? [...centres.values()].map((c) => ({ x: c.x, y: c.y + R + 14 })) : []
-  const routes = routeAll(edges, centres, R, avoid)
+  // Captions are part of each state's box: edges and labels route around them, as on the canvas.
+  const boxes = captionRects(positions, captions, states)
+  const routes = routeAll(edges, centres, R, boxes)
 
   let minX = Infinity
   let minY = Infinity
@@ -69,12 +71,11 @@ export function automatonSVG(input: DiagramInput): Diagram {
   }
   for (const [s, c] of centres) {
     grow(c.x - R - (s === machine.start ? 50 : 0), c.y - R)
-    grow(c.x + R, c.y + R + (captions[s] ? 24 : 0))
-    if (captions[s]) {
-      const w = textWidth(captions[s], 12) / 2
-      grow(c.x - w, c.y)
-      grow(c.x + w, c.y)
-    }
+    grow(c.x + R, c.y + R)
+  }
+  for (const b of boxes) {
+    grow(b.x, b.y)
+    grow(b.x + b.width, b.y + b.height)
   }
   for (const e of edges) {
     const r = routes.get(e.id)
@@ -146,7 +147,11 @@ export function automatonSVG(input: DiagramInput): Diagram {
       `<text x="${c.x}" y="${c.y}" font-size="${size}" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="${isDead ? COLOR.muted : COLOR.text}">${esc(s)}</text>`,
     )
     if (captions[s]) {
-      out.push(`<text x="${c.x}" y="${c.y + R + 16}" font-size="12" text-anchor="middle" fill="${COLOR.muted}">${esc(captions[s])}</text>`)
+      const b = captionRects(positions, captions, [s])[0]
+      out.push(
+        `<rect x="${b.x.toFixed(1)}" y="${b.y.toFixed(1)}" width="${b.width}" height="${b.height}" rx="4" fill="#ffffff"/>`,
+        `<text x="${c.x}" y="${(b.y + b.height / 2).toFixed(1)}" font-size="${CAPTION.font - 1}" text-anchor="middle" dominant-baseline="central" fill="${COLOR.muted}">${esc(captions[s])}</text>`,
+      )
     }
   }
   out.push('</g>', '</svg>')

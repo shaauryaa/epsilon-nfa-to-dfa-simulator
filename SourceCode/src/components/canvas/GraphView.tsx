@@ -233,6 +233,7 @@ export function GraphView() {
     }))
   }, [nfa, positions, dragging, selected, lit])
 
+  const latestEdges = useRef<Edge<TransitionEdgeData>[]>([])
   useLayoutEffect(() => {
     latest.current = nodes
   }, [nodes])
@@ -263,10 +264,15 @@ export function GraphView() {
       ]
     })
   }, [merged, nodes, lit])
+  useLayoutEffect(() => {
+    latestEdges.current = edges
+  }, [edges])
+  /** Fit the whole graph (Fit button) or the readable automatic view. */
+  const fitWhole = (duration = 250) => fitReadable(rf, wrapper.current, { duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole' })
 
   // Re-fit after a preset load, import or re-layout.
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current }))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current, edges: latestEdges.current }))
     return () => cancelAnimationFrame(id)
   }, [layoutNonce, rf])
 
@@ -283,7 +289,7 @@ export function GraphView() {
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current }))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { nodes: latest.current, edges: latestEdges.current }))
     })
     ro.observe(el)
     return () => {
@@ -369,13 +375,13 @@ export function GraphView() {
         isValidConnection={() => true}
         connectionLineStyle={{ stroke: EDGE_COLOR.highlight, strokeWidth: 1.6 }}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { nodes: latest.current }))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { nodes: latest.current, edges: latestEdges.current }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#cbd5e1" />
-        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} onFitView={() => fitReadable(rf, wrapper.current, { nodes: latest.current })} />
+        <Controls showInteractive={false} position="bottom-left" fitViewOptions={FIT} onFitView={() => fitWhole(0)} />
         {showMap && <CanvasMiniMap />}
         <Panel position="top-right" className="!m-3">
           <div role="toolbar" aria-label="Canvas" className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
@@ -386,7 +392,7 @@ export function GraphView() {
             <button type="button" className={toolButton} onClick={relayout} title="Arrange the states left to right">
               <LayoutIcon size={13} /> Re-layout
             </button>
-            <button type="button" className={toolButton} onClick={() => fitReadable(rf, wrapper.current, { duration: 250, nodes: latest.current })} title="Fit the diagram to the canvas">
+            <button type="button" className={toolButton} onClick={() => fitWhole()} title="Show the whole diagram">
               <FitIcon size={13} /> Fit
             </button>
             <MapToggle on={showMap} onToggle={() => setMapChoice(!showMap)} />

@@ -27,3 +27,14 @@ export function randomENFA(rand: () => number): ENFA {
   const finals = states.filter(() => rand() < 0.3)
   return { states, alphabet: ['a', 'b'], start: states[0], finals, transitions }
 }
+
+/**
+ * The classic 2ⁿ blow-up: "the k-th symbol from the end is a" over {a, b}.
+ * k + 1 NFA states; the DFA needs 2^k states.
+ */
+export function kthFromEnd(k: number): ENFA {
+  const states = Array.from({ length: k + 1 }, (_, i) => `q${i}`)
+  const transitions: ENFA['transitions'] = { q0: { a: ['q0', 'q1'], b: ['q0'] } }
+  for (let i = 1; i < k; i++) transitions[`q${i}`] = { a: [`q${i + 1}`], b: [`q${i + 1}`] }
+  return { states, alphabet: ['a', 'b'], start: 'q0', finals: [`q${k}`], transitions }
+}

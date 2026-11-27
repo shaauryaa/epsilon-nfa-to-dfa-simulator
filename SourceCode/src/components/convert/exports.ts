@@ -16,7 +16,8 @@ import { getPreset } from '../../presets'
 import { useApp } from '../../store/automaton'
 import { getConversion, useConvert } from '../../store/convert'
 import { toast } from '../../store/toasts'
-import { dfaCaption, layoutDFA } from '../../model/dfaLayout'
+import { dfaCaptions, layoutDFA } from '../../model/dfaLayout'
+import { MAX_DRAWN_DFA_STATES } from '../../model/largeDfa'
 
 /** DFA download formats offered on the result card. */
 export type DfaFormat = 'jff' | 'json' | 'txt' | 'dot' | 'csv' | 'png' | 'svg' | 'py' | 'js'
@@ -55,12 +56,12 @@ export function nfaDiagram(): Diagram {
 /** The converted DFA's diagram, with subsets under each state. */
 export function dfaDiagram(): Diagram | null {
   const conv = current()
-  if (!conv) return null
+  if (!conv || conv.large) return null
   const dfa = conv.result.dfa
   return automatonSVG({
     machine: dfaToENFA(dfa),
     positions: layoutDFA(dfa),
-    captions: Object.fromEntries(dfa.states.map((s) => [s, dfaCaption(dfa, s)])),
+    captions: dfaCaptions(dfa),
     dead: dfa.deadState,
     title: `DFA — ${machineName().title}`,
   })
@@ -115,9 +116,12 @@ export function downloadDfa(format: DfaFormat): Promise<void> {
         saveText(name, dfaToJavaScript(dfa, title), 'text/javascript')
         break
       case 'png':
-      case 'svg':
-        await saveDiagram(dfaDiagram()!, name, format)
+      case 'svg': {
+        const d = dfaDiagram()
+        if (!d) throw new Error(`the DFA has ${dfa.states.length} states, more than the ${MAX_DRAWN_DFA_STATES} that can be drawn. Use CSV or JSON instead.`)
+        await saveDiagram(d, name, format)
         break
+      }
     }
     return name
   })

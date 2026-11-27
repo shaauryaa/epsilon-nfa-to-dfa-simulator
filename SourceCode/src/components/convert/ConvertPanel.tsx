@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { formatSet } from '../../core'
+import { formatSet, type DFA, type SubsetResult } from '../../core'
+import { LARGE_TABLE_PAGE, largeDfaNotice, pageOf } from '../../model/largeDfa'
+import type { Conversion } from '../../store/convert'
 import { useApp } from '../../store/automaton'
 import { useConvert } from '../../store/convert'
 import { Section } from '../builder/Section'
@@ -20,7 +22,7 @@ import {
 } from '../ui/Icons'
 import { Popover } from '../ui/Popover'
 import { DFA_FORMATS, downloadDfa } from './exports'
-import { useConvertView, type ConvertView } from './useConversion'
+import { useConversion, useConvertView, type ConvertView } from './useConversion'
 
 function ControlButton({ label, onClick, disabled, primary, children }: { label: string; onClick: () => void; disabled?: boolean; primary?: boolean; children: ReactNode }) {
   return (
@@ -264,8 +266,8 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 }
 
 /** NFA states, DFA states, the 2^n bound and the construction time. */
-function ConvertStats({ view }: { view: ConvertView }) {
-  const { stats } = view.conversion.result
+function ConvertStats({ result }: { result: SubsetResult }) {
+  const { stats } = result
   const bound = stats.nfaStates <= 40 ? stats.upperBound.toLocaleString() : `2^${stats.nfaStates}`
   return (
     <Section title="Stats" icon={<ChartIcon size={13} />}>
@@ -279,8 +281,9 @@ function ConvertStats({ view }: { view: ConvertView }) {
   )
 }
 
-/** "Download DFA": every format with a one-line description. */
-function DownloadDfaButton() {
+/** "Download DFA": every format with a one-line description (pictures are left out for DFAs too large to draw). */
+function DownloadDfaButton({ large = false }: { large?: boolean }) {
+  const formats = large ? DFA_FORMATS.filter((f) => f.id !== 'png' && f.id !== 'svg') : DFA_FORMATS
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const close = () => setAnchor(null)
   return (
@@ -296,7 +299,7 @@ function DownloadDfaButton() {
       </Button>
       <Popover open={!!anchor} anchor={anchor} onClose={close} label="Download DFA" width={300}>
         <ul role="menu" aria-label="Download DFA as" className="-m-1 flex max-h-[60vh] flex-col overflow-y-auto">
-          {DFA_FORMATS.map((f, i) => (
+          {formats.map((f, i) => (
             <li key={f.id} role="none">
               <button
                 type="button"
@@ -368,7 +371,18 @@ function ResultCard({ view }: { view: ConvertView }) {
 /** Right sidebar in Convert mode while the machine has errors. */
 function ConvertErrors() {
   const errors = useApp((s) => s.validation.errors)
+  const failure = useApp((s) => s.error)
   const setTab = useApp((s) => s.setActiveTab)
+  if (failure && errors.length === 0) {
+    return (
+      <section className="px-4 py-4">
+        <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">Subset construction</h2>
+        <p role="status" className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-pretty text-slate-700">
+          {failure}
+        </p>
+      </section>
+    )
+  }
   return (
     <section className="px-4 py-4">
       <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">Subset construction</h2>
@@ -390,9 +404,97 @@ function ConvertErrors() {
   )
 }
 
+/** The complete DFA table of a large DFA, one page at a time. */
+export function PagedDfaTable({ dfa }: { dfa: DFA }) {
+  const [page, setPage] = useState(0)
+  const cut = pageOf(dfa.states, page)
+  const first = cut.page * LARGE_TABLE_PAGE + 1
+  return (
+    <Section title="DFA table" icon={<TableIcon size={13} />} meta={`${dfa.states.length.toLocaleString()} states`}>
+      <div className="max-h-[420px] overflow-auto rounded-lg border border-slate-200">
+        <table className="w-full border-collapse text-xs">
+          <thead className="sticky top-0 bg-slate-50 text-slate-600">
+            <tr>
+              <th scope="col" className="px-2 py-1.5 text-left font-semibold">
+                State
+              </th>
+              {dfa.alphabet.map((a) => (
+                <th key={a} scope="col" className="px-2 py-1.5 text-center font-mono font-semibold">
+                  {a}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cut.items.map((s) => {
+              const final = dfa.finals.includes(s)
+              return (
+                <tr key={s} className="border-t border-slate-100">
+                  <th scope="row" className="px-2 py-1 text-left font-normal">
+                    <span className="font-mono font-semibold text-slate-900">
+                      <span className="inline-block w-3 text-blue-600">{s === dfa.start ? '→' : ''}</span>
+                      <span className="inline-block w-2.5 text-emerald-600">{final ? '*' : ''}</span>
+                      {s}
+                    </span>
+                    <span className="ml-1 font-mono text-[11px] break-all text-slate-500">= {s === dfa.deadState ? '∅' : formatSet(dfa.subsets[s] ?? [])}</span>
+                  </th>
+                  {dfa.alphabet.map((a) => (
+                    <td key={a} className="px-2 py-1 text-center font-mono font-semibold text-slate-800">
+                      {dfa.transitions[s]?.[a] ?? <span className="text-slate-300">·</span>}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <Button size="sm" onClick={() => setPage(cut.page - 1)} disabled={cut.page === 0}>
+          Previous
+        </Button>
+        <span className="text-[11px] text-slate-600 tabular-nums">
+          {first}–{first + cut.items.length - 1} of {dfa.states.length.toLocaleString()}
+        </span>
+        <Button size="sm" onClick={() => setPage(cut.page + 1)} disabled={cut.page >= cut.pages - 1}>
+          Next
+        </Button>
+      </div>
+    </Section>
+  )
+}
+
+/** Convert panel for a DFA too large to draw: notice, stats, the complete table and downloads. */
+function LargeConvertPanel({ conversion }: { conversion: Conversion }) {
+  const { dfa } = conversion.result
+  return (
+    <>
+      <section aria-label="Large DFA" className="border-b border-slate-200 px-4 py-4">
+        <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-pretty text-slate-700">
+          {largeDfaNotice(dfa.states.length, dfa.deadState !== null)}
+        </p>
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className="text-slate-500">Start</dt>
+          <dd className="font-mono font-semibold text-slate-900">{dfa.start}</dd>
+          <dt className="text-slate-500">Final</dt>
+          <dd className="font-mono font-semibold text-slate-900">{dfa.finals.length.toLocaleString()} states</dd>
+        </dl>
+        <div className="mt-3.5">
+          <DownloadDfaButton large />
+        </div>
+      </section>
+      <ConvertStats result={conversion.result} />
+      <PagedDfaTable key={dfa.states.length} dfa={dfa} />
+      <ClosureTable />
+    </>
+  )
+}
+
 /** Convert mode's right sidebar: player, explanation, result, DFA table, ε-closures and stats. */
 export function ConvertPanel() {
+  const conversion = useConversion()
   const view = useConvertView()
+  if (conversion?.large) return <LargeConvertPanel conversion={conversion} />
   if (!view) return <ConvertErrors />
   const total = view.conversion.result.steps.length
   const finished = view.step.kind === 'done'
@@ -403,7 +505,7 @@ export function ConvertPanel() {
       {finished && <ResultCard view={view} />}
       <DfaTable view={view} />
       <ClosureTable />
-      <ConvertStats view={view} />
+      <ConvertStats result={view.conversion.result} />
     </>
   )
 }

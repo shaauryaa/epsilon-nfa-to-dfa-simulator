@@ -35,9 +35,6 @@ function useHistoryShortcuts() {
   }, [])
 }
 
-/** Below this window width the builder starts collapsed in Convert mode, to give the two canvases room. */
-const WIDE = 1600
-
 /** The collapsed builder: a slim rail with a button to open it again. */
 function BuilderRail({ onOpen }: { onOpen: () => void }) {
   return (
@@ -70,7 +67,8 @@ function App() {
   const [builderChoice, setBuilderChoice] = useState<boolean | null>(null)
   useHistoryShortcuts()
   const convert = tab === 'convert'
-  const builderOpen = !convert || (builderChoice ?? window.innerWidth >= WIDE)
+  // In Convert the builder starts collapsed at every width, so both canvases get the room; the rail reopens it.
+  const builderOpen = !convert || (builderChoice ?? false)
   const geometry = {
     '--left-w': builderOpen ? '360px' : '44px',
     '--right-w': convert ? '384px' : '320px',

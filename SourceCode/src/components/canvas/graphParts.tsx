@@ -3,15 +3,17 @@ import { BaseEdge, EdgeLabelRenderer, Handle, Position, useStore, type EdgeProps
 import { EPSILON } from '../../core'
 import { NODE_SIZE } from '../../graph/layout'
 import type { Route } from '../../graph/routing'
+import { FIT_MIN_ZOOM } from '../../model/viewport'
 import { EDGE_COLOR } from './colors'
 
 /** Font size of edge labels, in px at zoom 1. */
 export const LABEL_FONT = 13
 /**
- * Lowest zoom the canvases allow: edge labels never render below 12px and
- * state circles never below ~52px. Bigger machines pan instead of shrinking.
+ * Lowest zoom the canvases allow. The automatic view never goes below the
+ * readable zoom (12/13, see `READABLE_ZOOM`); only Fit and manual zoom go
+ * this far, so the whole graph can be shown at once.
  */
-export const MIN_ZOOM = 12 / LABEL_FONT
+export const MIN_ZOOM = FIT_MIN_ZOOM
 
 /** Roles a state can play in the Convert animation. */
 export interface StateRole {
@@ -134,7 +136,7 @@ export const StateNode = memo(function StateNode({ data, selected }: NodeProps<S
       </div>
       {data.caption && (
         <span
-          className="pointer-events-none absolute top-full left-1/2 mt-1.5 max-w-40 -translate-x-1/2 truncate rounded bg-white/90 px-1 font-mono text-[13px] leading-tight whitespace-nowrap text-slate-600 select-none"
+          className="pointer-events-none absolute top-full left-1/2 mt-1.5 h-5 max-w-40 -translate-x-1/2 truncate rounded bg-white px-1 font-mono text-[13px] leading-5 whitespace-nowrap text-slate-600 select-none"
           title={data.caption}
         >
           {data.caption}

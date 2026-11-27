@@ -14,6 +14,14 @@ export interface Route {
   labelY: number
 }
 
+/** An axis-aligned rectangle (top-left corner and size), e.g. a caption box. */
+export interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /** Input for {@link routeEdge}. Positions are circle centres. */
 export interface RouteInput {
   source: XY
@@ -31,8 +39,28 @@ export interface RouteInput {
    * below the state instead of above it).
    */
   lane?: 0 | 1 | 2
-  /** Extra points labels should keep clear of (e.g. captions under states). */
-  labelAvoid?: readonly XY[]
+  /**
+   * Boxes neither the edge line nor its label may cross, such as the subset
+   * captions under DFA states.
+   */
+  blocks?: readonly Rect[]
+  /** Half the width of the edge's label pill, in px (default 16). */
+  labelHalfWidth?: number
+}
+
+/** Half the height of a label pill, in px. */
+const LABEL_HALF_HEIGHT = 11
+/** Space kept between an edge line and a blocked box, in px. */
+const BLOCK_CLEARANCE = 4
+
+const inRect = (p: XY, b: Rect, pad: number) =>
+  p.x > b.x - pad && p.x < b.x + b.width + pad && p.y > b.y - pad && p.y < b.y + b.height + pad
+
+/** Signed gap between a label pill centred at `p` and a box (negative = overlap). */
+function rectGap(p: XY, hw: number, b: Rect): number {
+  const gx = Math.max(b.x - (p.x + hw), p.x - hw - (b.x + b.width))
+  const gy = Math.max(b.y - (p.y + LABEL_HALF_HEIGHT), p.y - LABEL_HALF_HEIGHT - (b.y + b.height))
+  return Math.max(gx, gy)
 }
 
 const CLEARANCE = 10
@@ -65,11 +93,26 @@ function candidateOffsets(hasReverse: boolean, lane: 0 | 1 | 2): number[] {
 }
 
 /**
- * Picks the point along a quadratic curve for a label: the middle if it is
- * clear of every state, otherwise the nearest position along the edge that
- * is, so a label never sits on top of a state circle.
+ * Extra bends tried only when none of the usual ones clears every caption:
+ * wider bends on the edge's own side, then the opposite side with a larger
+ * bend than any partner edge uses, so a reverse pair still reads as two
+ * separate arcs.
  */
-function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number, avoid: readonly XY[] = []): XY {
+function fallbackOffsets(hasReverse: boolean, lane: 0 | 1 | 2): number[] {
+  if (!hasReverse) {
+    if (lane === 1) return [-260, -320, 40, 90, 140]
+    if (lane === 2) return [260, 320, -40, -90, -140]
+    return [260, -260, 320, -320]
+  }
+  return [240, 300, -110, -150, -200, -260]
+}
+
+/**
+ * Picks the point along a quadratic curve for a label: the middle if it is
+ * clear of every state and blocked box, otherwise the nearest position along
+ * the edge that is, so a label never sits on a state circle or a caption.
+ */
+function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number, blocks: readonly Rect[], hw: number): XY {
   const ts = [0.5, 0.42, 0.58, 0.34, 0.66, 0.27, 0.73, 0.2, 0.8]
   let best = quadPoint(start, c, end, 0.5)
   let bestGap = -Infinity
@@ -77,7 +120,7 @@ function placeLabel(start: XY, c: XY, end: XY, states: readonly XY[], r: number,
     const p = quadPoint(start, c, end, t)
     const gap = Math.min(
       ...states.map((o) => Math.hypot(p.x - o.x, p.y - o.y) - r - LABEL_CLEARANCE),
-      ...avoid.map((o) => Math.hypot((p.x - o.x) / 4, p.y - o.y) - LABEL_CLEARANCE),
+      ...blocks.map((b) => rectGap(p, hw, b) - 2),
     )
     if (gap >= 0) return p
     if (gap > bestGap) {
@@ -124,20 +167,29 @@ export function routeEdge(input: RouteInput): Route {
   const mid = { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 }
   const candidates = candidateOffsets(input.hasReverse, lane)
 
-  const clear = (offset: number) => {
+  const blocks = input.blocks ?? []
+  const hits = (offset: number, withBlocks: boolean) => {
     const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
-    for (let i = 1; i < 20; i++) {
-      const p = quadPoint(s, c, t, i / 20)
-      for (const o of input.obstacles) if (Math.hypot(p.x - o.x, p.y - o.y) < r + CLEARANCE) return false
+    for (let i = 1; i < 40; i++) {
+      const p = quadPoint(s, c, t, i / 40)
+      // Points inside the end circles are trimmed away later, so they never count.
+      if (Math.hypot(p.x - s.x, p.y - s.y) < r || Math.hypot(p.x - t.x, p.y - t.y) < r) continue
+      for (const o of input.obstacles) if (Math.hypot(p.x - o.x, p.y - o.y) < r + CLEARANCE) return true
+      if (withBlocks) for (const b of blocks) if (inRect(p, b, BLOCK_CLEARANCE)) return true
     }
-    return true
+    return false
   }
-  const offset = candidates.find(clear) ?? candidates[0]
+  // Prefer a bend that clears states and captions; then one that clears states only.
+  const offset =
+    candidates.find((o) => !hits(o, true)) ??
+    (blocks.length > 0 ? fallbackOffsets(input.hasReverse, lane).find((o) => !hits(o, true)) : undefined) ??
+    candidates.find((o) => !hits(o, false)) ??
+    candidates[0]
   // Control point twice the offset away, so the curve's apex sits `offset` from the chord.
   const c = { x: mid.x + normal.x * offset * 2, y: mid.y + normal.y * offset * 2 }
   const start = towards(s, offset === 0 ? t : c, r)
   const end = towards(t, offset === 0 ? s : c, r + 2)
-  const label = placeLabel(start, c, end, [s, t, ...input.obstacles], r, input.labelAvoid)
+  const label = placeLabel(start, c, end, [s, t, ...input.obstacles], r, blocks, input.labelHalfWidth ?? 16)
   return {
     path: `M ${r1(start.x)} ${r1(start.y)} Q ${r1(c.x)} ${r1(c.y)} ${r1(end.x)} ${r1(end.y)}`,
     labelX: r1(label.x),
@@ -154,6 +206,19 @@ export interface RoutableEdge {
   hasReverse: boolean
   hasParallel: boolean
   epsilonOnly: boolean
+  /** Label text, used to size the label pill. */
+  label?: string
+}
+
+/**
+ * Half the width of a label pill for some text at the canvas label size.
+ *
+ * @param label - The label text.
+ * @returns Half the pill width in px.
+ * @throws Never throws.
+ */
+export function labelHalfWidth(label: string): number {
+  return ([...label].length * 13 * 0.62 + 18) / 2
 }
 
 /**
@@ -163,7 +228,7 @@ export interface RoutableEdge {
  * @param edges - Edges, e.g. from `mergedEdges`.
  * @param centres - Circle centre of each state.
  * @param radius - Circle radius.
- * @param labelAvoid - Extra points labels keep clear of, such as captions.
+ * @param blocks - Boxes edges and labels keep clear of, such as captions.
  * @returns Route per edge id; edges with an unknown end are skipped.
  * @throws Never throws.
  */
@@ -171,7 +236,7 @@ export function routeAll(
   edges: readonly RoutableEdge[],
   centres: ReadonlyMap<string, XY>,
   radius: number,
-  labelAvoid: readonly XY[] = [],
+  blocks: readonly Rect[] = [],
 ): Map<string, Route> {
   const out = new Map<string, Route>()
   const all = [...centres.entries()]
@@ -181,7 +246,8 @@ export function routeAll(
     if (!source || !target) continue
     const obstacles = all.filter(([id]) => id !== e.source && id !== e.target).map(([, p]) => p)
     const lane = e.hasParallel ? (e.epsilonOnly ? 2 : 1) : 0
-    out.set(e.id, routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius, lane, labelAvoid }))
+    const labelHalf = e.label !== undefined ? labelHalfWidth(e.label) : undefined
+    out.set(e.id, routeEdge({ source, target, loop: e.loop, hasReverse: e.hasReverse, obstacles, radius, lane, blocks, labelHalfWidth: labelHalf }))
   }
   return out
 }

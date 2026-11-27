@@ -1,6 +1,6 @@
 import { useApp, type Tab } from '../store/automaton'
 import { useConvert } from '../store/convert'
-import { useConvertTimeline } from './convert/useConversion'
+import { useConversion, useConvertTimeline } from './convert/useConversion'
 import { Timeline } from './Timeline'
 
 const HINTS: Record<Tab, string> = {
@@ -13,14 +13,21 @@ const HINTS: Record<Tab, string> = {
 
 function ConvertTimeline() {
   const timeline = useConvertTimeline()
+  const conversion = useConversion()
+  const failure = useApp((s) => s.error)
   const jump = useConvert((s) => s.jump)
+  const hint = conversion?.large
+    ? `The step timeline is hidden for a DFA this large (${conversion.result.steps.length.toLocaleString()} steps). The step log download lists them all.`
+    : failure
+      ? 'There are no steps to show for a DFA this large.'
+      : HINTS.convert
   return (
     <Timeline
       label="Subset construction steps"
       steps={timeline?.steps ?? []}
       current={timeline?.current ?? -1}
       onSelect={jump}
-      hint={HINTS.convert}
+      hint={hint}
     />
   )
 }

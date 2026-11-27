@@ -1,19 +1,22 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import ReactFlow, { Background, BackgroundVariant, Controls, Panel, ReactFlowProvider, useReactFlow, type Edge, type Node } from 'reactflow'
-import { dfaToENFA, epsilonClosureTrace, formatSet, type DFA } from '../../core'
+import { dfaToENFA, epsilonClosureTrace, formatSet, type DFA, type SubsetStep } from '../../core'
 import { NODE_SIZE, type XY } from '../../graph/layout'
-import { dfaCaption, layoutDFA } from '../../model/dfaLayout'
-import { FRAME_MS } from '../../model/convertPlan'
+import { captionRects, dfaCaption, layoutDFA } from '../../model/dfaLayout'
+import { FRAME_MS, type Frame } from '../../model/convertPlan'
+import { largeDfaNotice } from '../../model/largeDfa'
 import { mergedEdges } from '../../model/graph'
 import { useApp } from '../../store/automaton'
 import { useConvert } from '../../store/convert'
 import { EDGE_COLOR } from '../canvas/colors'
-import { arrow, FIT, fitReadable, MINIMAP_MIN_STATES, routeAll } from '../canvas/flow'
+import { arrow, FIT, fitReadable, MINIMAP_MIN_STATES, prefersReducedMotion, routeAll } from '../canvas/flow'
+import { circlesBox, panTarget, TOP_INSET } from '../../model/viewport'
 import { MIN_ZOOM, StateNode, TransitionEdge, type StateNodeData, type TransitionEdgeData } from '../canvas/graphParts'
 import { CanvasMiniMap, MapToggle, toolButton } from '../canvas/GraphView'
 import { Button } from '../ui/Button'
 import { AlertIcon, FitIcon } from '../ui/Icons'
-import { useConvertClock, useConvertView, type ConvertView } from './useConversion'
+import { useConversion, useConvertClock, useConvertView, type ConvertView } from './useConversion'
+import type { Conversion } from '../../store/convert'
 
 const nodeTypes = { state: StateNode }
 const edgeTypes = { transition: TransitionEdge }
@@ -36,7 +39,8 @@ function dfaRoutes(dfa: DFA, layout: Record<string, XY>, states: string[], trans
   if (hit) return hit
   const merged = mergedEdges(dfaToENFA({ ...dfa, states, transitions }))
   const centres = new Map<string, XY>(states.map((s) => [s, { x: (layout[s]?.x ?? 0) + R, y: (layout[s]?.y ?? 0) + R }]))
-  const shape = { merged, routes: routeAll(merged, centres, true) }
+  const captions = Object.fromEntries(states.map((s) => [s, dfaCaption(dfa, s)]))
+  const shape = { merged, routes: routeAll(merged, centres, captionRects(layout, captions, states)) }
   cache.set(key, shape)
   return shape
 }
@@ -52,24 +56,50 @@ interface PaneProps {
   fitKey: string
   legend?: ReactNode
   stateCount: number
+  /** States the current animation frame involves; the camera pans to keep them in view. */
+  focus?: string[]
 }
 
+/** Time for the camera to follow playback, in ms. */
+const FOLLOW_MS = 360
+
 /** One read-only React Flow canvas with a title, Fit and Map controls. */
-function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: PaneProps) {
+function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus }: PaneProps) {
   const rf = useReactFlow()
   const wrapper = useRef<HTMLDivElement>(null)
   const [mapChoice, setMapChoice] = useState<boolean | null>(null)
   const showMap = mapChoice ?? stateCount >= MINIMAP_MIN_STATES
   const latest = useRef(nodes)
+  const latestEdges = useRef(edges)
   useLayoutEffect(() => {
     latest.current = nodes
-  }, [nodes])
-  const fit = (duration = 0) => fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current })
+    latestEdges.current = edges
+  }, [nodes, edges])
+  /** Fit button: the whole graph, zooming out as far as needed. */
+  const fit = (duration = 0) =>
+    fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole' })
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current }))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))
     return () => cancelAnimationFrame(id)
   }, [fitKey, rf])
+
+  // Follow playback: pan (never zoom) just enough to bring the frame's states into view.
+  const focusKey = focus && focus.length > 0 ? focus.join(',') : ''
+  useEffect(() => {
+    const el = wrapper.current
+    if (!el || !focusKey) return
+    const ids = new Set(focusKey.split(','))
+    const box = circlesBox(latest.current.filter((n) => ids.has(n.id)).map((n) => n.position))
+    if (!box) return
+    // Room for captions below and self-loop labels above.
+    const padded = { x: box.x - 20, y: box.y - 40, width: box.width + 40, height: box.height + 76 }
+    const vp = rf.getViewport()
+    const target = panTarget(vp, el.clientWidth, el.clientHeight, padded)
+    if (!target) return
+    // setCenter centres in the whole pane; shift so the point sits in the middle of the area below the title bar.
+    rf.setCenter(target.x, target.y - TOP_INSET / 2 / vp.zoom, { zoom: vp.zoom, duration: prefersReducedMotion() ? 0 : FOLLOW_MS })
+  }, [focusKey, rf])
 
   useEffect(() => {
     const el = wrapper.current
@@ -83,7 +113,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current }))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))
     })
     ro.observe(el)
     return () => {
@@ -104,7 +134,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
         elementsSelectable={false}
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current }))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
@@ -120,7 +150,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount }: Pan
         </Panel>
         <Panel position="top-right" className="!m-3">
           <div role="toolbar" aria-label={`${title} canvas`} className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-            <button type="button" className={toolButton} onClick={() => fit(250)} title="Fit the diagram to the pane">
+            <button type="button" className={toolButton} onClick={() => fit(250)} title="Show the whole diagram">
               <FitIcon size={13} /> Fit
             </button>
             <MapToggle on={showMap} onToggle={() => setMapChoice(!showMap)} />
@@ -155,13 +185,27 @@ function NfaLegend() {
   )
 }
 
-/** Left pane: the ε-NFA with the current step's sets and edges highlighted. */
-function NfaPane({ view }: { view: ConvertView }) {
+/** The ε-NFA with nothing highlighted (large DFAs are not animated). */
+const IDLE_FRAME: Pick<Frame, 'current' | 'moved' | 'closure' | 'symbolEdges' | 'epsilonEdges' | 'pulse' | 'tokens'> = {
+  current: [],
+  moved: [],
+  closure: [],
+  symbolEdges: [],
+  epsilonEdges: [],
+  pulse: false,
+  tokens: false,
+}
+const IDLE_STEP: Pick<SubsetStep, 'index' | 'symbol'> = { index: 0, symbol: undefined }
+
+/** Left pane: the ε-NFA with the current step's sets and edges highlighted (`view` null: no step highlight). */
+function NfaPane({ view }: { view: ConvertView | null }) {
   const nfa = useApp((s) => s.nfa)
   const positions = useApp((s) => s.positions)
   const picked = useConvert((s) => s.pickedClosure)
   const speed = useConvert((s) => s.speed)
-  const { frame, step, live } = view
+  const frame = view?.frame ?? IDLE_FRAME
+  const step = view?.step ?? IDLE_STEP
+  const live = view?.live ?? false
 
   // A row picked in the closure table overrides the player's highlight.
   const pickedTrace = useMemo(() => {
@@ -243,6 +287,7 @@ function NfaPane({ view }: { view: ConvertView }) {
       fitKey={nfa.states.join(',')}
       legend={<NfaLegend />}
       stateCount={nfa.states.length}
+      focus={live && !pickedTrace ? [...new Set([...frame.current, ...frame.moved, ...frame.closure])] : undefined}
     />
   )
 }
@@ -318,14 +363,49 @@ function DfaPane({ view }: { view: ConvertView }) {
       edges={edges}
       fitKey={dfa.states.join(',')}
       stateCount={dfa.states.length}
+      focus={live ? [step.kind === 'transition' ? step.from : undefined, progress.entering ?? progress.flashing ?? undefined].filter((x): x is string => !!x) : undefined}
     />
+  )
+}
+
+/** Right pane for a DFA too large to draw: a calm notice instead of the diagram. */
+function LargeDfaPane({ conversion }: { conversion: Conversion }) {
+  const dfa = conversion.result.dfa
+  return (
+    <div className="grid h-full min-w-0 flex-1 place-items-center bg-slate-50 p-6">
+      <div role="status" className="max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-slate-900">DFA diagram hidden</h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-pretty text-slate-600">{largeDfaNotice(dfa.states.length, dfa.deadState !== null)}</p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          The full DFA table is on the right, page by page. CSV, JSON and the other text downloads still contain every state.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Shown instead of the panes when subset construction stopped at the state cap. */
+function TooLargeToBuild({ message }: { message: string }) {
+  const setTab = useApp((s) => s.setActiveTab)
+  return (
+    <div className="grid h-full place-items-center bg-slate-50 p-6">
+      <div role="status" className="max-w-md rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+        <p className="text-sm font-semibold text-slate-900">This DFA is too large to build here</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-pretty text-slate-600">{message}</p>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={() => setTab('define')}>
+          Back to Define
+        </Button>
+      </div>
+    </div>
   )
 }
 
 /** Shown instead of the panes while the machine has errors. */
 function NotConvertible() {
   const errors = useApp((s) => s.validation.errors.length)
+  const failure = useApp((s) => s.error)
   const setTab = useApp((s) => s.setActiveTab)
+  if (failure && errors === 0) return <TooLargeToBuild message={failure} />
   return (
     <div className="grid h-full place-items-center bg-slate-50 p-6">
       <div className="max-w-sm rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
@@ -345,8 +425,19 @@ function NotConvertible() {
 /** Convert-mode canvas: ε-NFA on the left, the DFA being built on the right. */
 export function ConvertCanvas() {
   useConvertClock()
+  const conversion = useConversion()
   const view = useConvertView()
   useEffect(() => () => useConvert.getState().pause(), [])
+  if (conversion?.large) {
+    return (
+      <div className="flex h-full divide-x divide-slate-200">
+        <ReactFlowProvider>
+          <NfaPane view={null} />
+        </ReactFlowProvider>
+        <LargeDfaPane conversion={conversion} />
+      </div>
+    )
+  }
   if (!view) return <NotConvertible />
   return (
     <div className="flex h-full divide-x divide-slate-200">

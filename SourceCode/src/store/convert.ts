@@ -7,11 +7,15 @@
 import { create } from 'zustand'
 import { subsetConstruction, type ENFA, type SubsetResult } from '../core'
 import { FRAME_MS, planAll, type Frame } from '../model/convertPlan'
+import { isTooLargeToDraw } from '../model/largeDfa'
 
 /** A conversion ready to play: the result and its animation plan. */
 export interface Conversion {
   result: SubsetResult
+  /** Frames per step; empty when {@link Conversion.large} (nothing is animated). */
   plan: Frame[][]
+  /** True when the DFA is too large to draw: only tables and stats are shown. */
+  large: boolean
 }
 
 let cache: { nfa: ENFA; subset: SubsetResult; showDead: boolean; value: Conversion } | null = null
@@ -25,12 +29,16 @@ let cache: { nfa: ENFA; subset: SubsetResult; showDead: boolean; value: Conversi
  * @param subset - The derived result (with dead state), or `null` while the machine has errors.
  * @param showDead - Whether the dead state ∅ is shown.
  * @returns The conversion, or `null` when there is nothing to convert.
+ *   Conversions with more than `MAX_DRAWN_DFA_STATES` states have `large`
+ *   set and an empty plan.
  */
 export function getConversion(nfa: ENFA, subset: SubsetResult | null, showDead: boolean): Conversion | null {
   if (!subset) return null
   if (cache && cache.nfa === nfa && cache.subset === subset && cache.showDead === showDead) return cache.value
   const result = showDead ? subset : subsetConstruction(nfa, { includeDeadState: false })
-  const value = { result, plan: planAll(nfa, result) }
+  // Large DFAs are never animated, so the per-step plan is not built.
+  const large = isTooLargeToDraw(result.dfa.states.length)
+  const value = { result, plan: large ? [] : planAll(nfa, result), large }
   cache = { nfa, subset, showDead, value }
   return value
 }

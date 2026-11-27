@@ -10,6 +10,7 @@ import { layoutLR, type XY } from '../graph/layout'
 import { mergedEdges } from '../model/graph'
 import { cloneENFA } from '../model/edits'
 import type { FocusTarget } from '../model/issues'
+import { crashedLastSession, guardFor } from '../lib/boot'
 import { derive, type Derived } from './derive'
 
 export type Tab = 'define' | 'convert' | 'test' | 'minimize'
@@ -104,7 +105,12 @@ function initialMachine(): { nfa: ENFA; presetId: string | null } {
   return { nfa: cloneENFA(getPreset(DEFAULT_PRESET)!.nfa), presetId: DEFAULT_PRESET }
 }
 
+/** How long a tab switch must stay responsive before it counts as safe (see `guardFor`). */
+const TAB_GUARD_MS = 1500
+
 function initialTab(): Tab {
+  // After a crash or a frozen tab, start on Define instead of the tab that failed.
+  if (crashedLastSession) return 'define'
   const t = readStorage(KEY_TAB)
   return t === 'convert' || t === 'test' || t === 'minimize' ? t : 'define'
 }
@@ -237,6 +243,7 @@ export const useApp = create<AppState>((set, get) => ({
   relayout: () =>
     set((s) => ({ positions: layoutLR(s.nfa.states, mergedEdges(s.nfa)), layoutNonce: s.layoutNonce + 1 })),
   setActiveTab: (tab) => {
+    if (tab !== get().activeTab) guardFor(TAB_GUARD_MS)
     writeStorage(KEY_TAB, tab)
     set({ activeTab: tab })
   },
