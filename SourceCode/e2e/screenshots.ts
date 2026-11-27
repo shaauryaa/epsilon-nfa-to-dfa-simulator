@@ -22,7 +22,7 @@ async function shot(page: Page, name: string, settle?: number): Promise<void> {
 }
 
 /** Scrolls the right sidebar so the section with this heading is at its top. */
-async function scrollInspectorTo(page: Page, heading: string): Promise<void> {
+async function scrollInspectorTo(page: Page, heading: string | RegExp): Promise<void> {
   await page
     .getByRole('complementary', { name: 'Inspector' })
     .getByRole('heading', { name: heading })
@@ -40,10 +40,8 @@ async function abb(page: Page): Promise<void> {
 
 test('01 define table', async ({ page }) => {
   await abb(page)
-  await page
-    .getByRole('complementary', { name: 'Builder' })
-    .getByRole('heading', { name: 'Transition table' })
-    .evaluate((h) => h.scrollIntoView({ block: 'start' }))
+  // Builder scrolled to the very top, so no section header is cut off.
+  await page.getByRole('complementary', { name: 'Builder' }).evaluate((aside) => (aside.scrollTop = 0))
   await fitAll(page)
   await shot(page, '01-define-table')
 })
@@ -196,4 +194,25 @@ test('18 about', async ({ page }) => {
   await page.getByRole('button', { name: 'About' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await shot(page, '18-about')
+})
+
+test('19 from regex', async ({ page }) => {
+  await openApp(page)
+  await loadPreset(page, 'epsilon-cycle')
+  await page.getByRole('textbox', { name: 'Regular expression' }).fill('(a|b)*abb')
+  await page.getByRole('button', { name: 'Build', exact: true }).click()
+  await expect(page.locator('.toast').last()).toContainText('Built the Thompson ε-NFA')
+  await page.getByRole('complementary', { name: 'Builder' }).evaluate((aside) => (aside.scrollTop = 0))
+  await fitAll(page)
+  // Keep the typed regex visible: dismissing the toast does not clear the input.
+  await shot(page, '19-from-regex')
+})
+
+test('20 working table', async ({ page }) => {
+  await abb(page)
+  await openTab(page, 'Convert')
+  await skipToEnd(page)
+  await page.getByRole('button', { name: /Working table/ }).click()
+  await scrollInspectorTo(page, /Working table/)
+  await shot(page, '20-working-table', 700)
 })
