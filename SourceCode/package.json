@@ -12,6 +12,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:report": "tsx scripts/test-report.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.e2e.json",
+    "e2e": "vite build && playwright test --project=e2e",
+    "screenshots": "vite build && playwright test --project=screenshots",
     "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "dependencies": {
@@ -27,6 +30,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.3.5",
     "@types/dagre": "^0.7.54",
     "@types/node": "^26.6.6",

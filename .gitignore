@@ -24,3 +24,7 @@ Thumbs.db
 review/
 reviews/
 .playwright-cli/
+
+# Playwright output
+SourceCode/test-results/
+SourceCode/playwright-report/

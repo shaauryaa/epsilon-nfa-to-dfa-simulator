@@ -78,8 +78,15 @@ docs/                Additional documentation
 From `SourceCode/`:
 
 ```sh
-npm test
+npm test            # unit tests (Vitest)
+npm run typecheck   # strict TypeScript, no emit
+npm run lint        # oxlint
+npm run test:report # writes TestCases/results.csv and results.md
+npm run e2e         # browser tests (Playwright, headless) against vite preview
+npm run screenshots # report figures into ../Screenshots (1440×900 at 2×)
 ```
+
+The first `npm run e2e` on a new machine needs the browser: `npx playwright install chromium`.
 
 Tests also run on every push to `main` via GitHub Actions before deployment. *(Test coverage details to be added.)*
 
