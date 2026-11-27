@@ -100,5 +100,90 @@
       "bbbb"
     ]
   },
-  "expectedDfaStates": 5
+  "expectedDfaStates": 5,
+  "expectedDfaTable": [
+    {
+      "state": "A",
+      "subset": [
+        "0",
+        "1",
+        "2",
+        "4",
+        "7"
+      ],
+      "final": false,
+      "on": {
+        "a": "B",
+        "b": "C"
+      }
+    },
+    {
+      "state": "B",
+      "subset": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "6",
+        "7",
+        "8"
+      ],
+      "final": false,
+      "on": {
+        "a": "B",
+        "b": "D"
+      }
+    },
+    {
+      "state": "C",
+      "subset": [
+        "1",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "final": false,
+      "on": {
+        "a": "B",
+        "b": "C"
+      }
+    },
+    {
+      "state": "D",
+      "subset": [
+        "1",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7",
+        "9"
+      ],
+      "final": false,
+      "on": {
+        "a": "B",
+        "b": "E"
+      }
+    },
+    {
+      "state": "E",
+      "subset": [
+        "1",
+        "2",
+        "4",
+        "5",
+        "6",
+        "7",
+        "10"
+      ],
+      "final": true,
+      "on": {
+        "a": "B",
+        "b": "C"
+      }
+    }
+  ],
+  "expectedMinStates": 4
 }

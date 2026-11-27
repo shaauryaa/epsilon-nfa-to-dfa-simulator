@@ -66,5 +66,6 @@
       "0011"
     ]
   },
-  "expectedDfaStates": 8
+  "expectedDfaStates": 8,
+  "expectedMinStates": 8
 }

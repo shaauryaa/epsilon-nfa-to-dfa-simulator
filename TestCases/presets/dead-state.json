@@ -43,5 +43,50 @@
       "aba"
     ]
   },
-  "expectedDfaStates": 4
+  "expectedDfaStates": 4,
+  "expectedDfaTable": [
+    {
+      "state": "A",
+      "subset": [
+        "q0"
+      ],
+      "final": false,
+      "on": {
+        "a": "B",
+        "b": "∅"
+      }
+    },
+    {
+      "state": "B",
+      "subset": [
+        "q1"
+      ],
+      "final": false,
+      "on": {
+        "a": "∅",
+        "b": "C"
+      }
+    },
+    {
+      "state": "∅",
+      "subset": [],
+      "final": false,
+      "on": {
+        "a": "∅",
+        "b": "∅"
+      }
+    },
+    {
+      "state": "C",
+      "subset": [
+        "q2"
+      ],
+      "final": true,
+      "on": {
+        "a": "∅",
+        "b": "∅"
+      }
+    }
+  ],
+  "expectedMinStates": 4
 }

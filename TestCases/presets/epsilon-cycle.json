@@ -61,5 +61,6 @@
       "aaa"
     ]
   },
-  "expectedDfaStates": 2
+  "expectedDfaStates": 2,
+  "expectedMinStates": 2
 }

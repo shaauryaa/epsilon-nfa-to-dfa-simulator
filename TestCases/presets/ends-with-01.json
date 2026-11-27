@@ -51,5 +51,43 @@
       "0110"
     ]
   },
-  "expectedDfaStates": 3
+  "expectedDfaStates": 3,
+  "expectedDfaTable": [
+    {
+      "state": "A",
+      "subset": [
+        "q0"
+      ],
+      "final": false,
+      "on": {
+        "0": "B",
+        "1": "A"
+      }
+    },
+    {
+      "state": "B",
+      "subset": [
+        "q0",
+        "q1"
+      ],
+      "final": false,
+      "on": {
+        "0": "B",
+        "1": "C"
+      }
+    },
+    {
+      "state": "C",
+      "subset": [
+        "q0",
+        "q2"
+      ],
+      "final": true,
+      "on": {
+        "0": "B",
+        "1": "A"
+      }
+    }
+  ],
+  "expectedMinStates": 3
 }

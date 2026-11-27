@@ -12,9 +12,11 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { toJSON, validateENFA } from '../src/core/automaton'
 import { minimizeDFA } from '../src/core/minimize'
-import { simulateDFA, simulateENFA, tokenize } from '../src/core/simulate'
+import { checkEquivalence } from '../src/core/equivalence'
+import { InputSymbolError, simulateDFA, simulateENFA, tokenize } from '../src/core/simulate'
 import { subsetConstruction } from '../src/core/subset'
 import { presets } from '../src/presets'
+import { dfaTableRows, formatDfaRows } from '../src/presets/compare'
 import { validationCases } from '../src/presets/validation'
 
 interface Row {
@@ -47,7 +49,34 @@ presets.forEach((p, pi) => {
   if (p.expectedDfaStates !== undefined) {
     add(nextId(), 'Subset construction: DFA state count', p.name, '-', String(p.expectedDfaStates), String(dfa.states.length))
   }
+  if (p.expectedDfaTable) {
+    add(
+      nextId(),
+      'Expected DFA table vs generated',
+      p.name,
+      '-',
+      formatDfaRows(p.expectedDfaTable, p.nfa.alphabet),
+      formatDfaRows(dfaTableRows(dfa), dfa.alphabet),
+    )
+  }
+  if (p.expectedMinStates !== undefined) {
+    add(nextId(), 'Expected minimal states vs generated', p.name, '-', String(p.expectedMinStates), String(min.states.length))
+  }
   add(nextId(), 'Minimisation: no more states than DFA', p.name, '-', 'true', String(min.states.length <= dfa.states.length))
+  const eqDfa = checkEquivalence(p.nfa, dfa, 8)
+  const eqMin = checkEquivalence(dfa, min, 8)
+  const eqText = (r: ReturnType<typeof checkEquivalence>) =>
+    r.agree ? `agree on all ${r.tested} strings` : `differ on "${r.counterexample?.input === '' ? 'ε' : r.counterexample?.input}"`
+  // Number of strings of length 0..8 over Σ, worked out independently of the check.
+  const allStrings = Array.from({ length: 9 }, (_, k) => p.nfa.alphabet.length ** k).reduce((x, y) => x + y, 0)
+  add(
+    nextId(),
+    'checkEquivalence: ε-NFA ≡ DFA ≡ min-DFA (length ≤ 8)',
+    p.name,
+    'all strings ≤ 8',
+    `ε-NFA ≡ DFA: agree on all ${allStrings} strings; DFA ≡ min-DFA: agree on all ${allStrings} strings`,
+    `ε-NFA ≡ DFA: ${eqText(eqDfa)}; DFA ≡ min-DFA: ${eqText(eqMin)}`,
+  )
 
   const cases = [...p.expected.accepts.map((s) => [s, true] as const), ...p.expected.rejects.map((s) => [s, false] as const)]
   for (const [input, want] of cases) {
@@ -57,6 +86,19 @@ presets.forEach((p, pi) => {
     add(nextId(), 'DFA simulation', p.name, shown, verdict(want), verdict(simulateDFA(dfa, tokens).accepted))
     add(nextId(), 'Minimal DFA simulation', p.name, shown, verdict(want), verdict(simulateDFA(min, tokens).accepted))
   }
+
+  // Expected rejection of input outside Σ: an accepted string with a stray symbol appended.
+  const stray = ['z', '#', '2', '!'].find((c) => !p.nfa.alphabet.some((a) => a.includes(c)))!
+  const bad = `${p.expected.accepts[0] ?? ''}${stray}`
+  const position = bad.indexOf(stray)
+  let got: string
+  try {
+    tokenize(bad, p.nfa.alphabet)
+    got = 'no error'
+  } catch (e) {
+    got = e instanceof InputSymbolError ? `InputSymbolError "${e.character}" at position ${e.position}` : String(e)
+  }
+  add(nextId(), 'Invalid symbol → InputSymbolError', p.name, bad, `InputSymbolError "${stray}" at position ${position}`, got)
 })
 
 validationCases.forEach((c, i) => {
@@ -103,6 +145,8 @@ for (const p of presets) {
     ...JSON.parse(toJSON(p.nfa)),
     expected: p.expected,
     ...(p.expectedDfaStates !== undefined ? { expectedDfaStates: p.expectedDfaStates } : {}),
+    ...(p.expectedDfaTable ? { expectedDfaTable: p.expectedDfaTable } : {}),
+    ...(p.expectedMinStates !== undefined ? { expectedMinStates: p.expectedMinStates } : {}),
   }
   writeFileSync(join(outDir, 'presets', `${p.id}.json`), JSON.stringify(file, null, 2) + '\n')
 }

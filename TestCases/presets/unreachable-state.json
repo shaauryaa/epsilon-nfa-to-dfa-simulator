@@ -51,5 +51,6 @@
       "aba"
     ]
   },
-  "expectedDfaStates": 3
+  "expectedDfaStates": 3,
+  "expectedMinStates": 3
 }

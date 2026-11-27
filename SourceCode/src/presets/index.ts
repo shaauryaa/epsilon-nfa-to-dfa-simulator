@@ -7,6 +7,18 @@
 
 import { EPSILON, type ENFA } from '../core/types'
 
+/**
+ * One row of a hand-derived (textbook) DFA table: the DFA state's name, the
+ * NFA subset it stands for, whether it is final, and its move on each
+ * symbol. `∅` is the dead state.
+ */
+export interface ExpectedDfaRow {
+  state: string
+  subset: string[]
+  final: boolean
+  on: Record<string, string>
+}
+
 /** A ready-made example machine. */
 export interface Preset {
   id: string
@@ -18,6 +30,14 @@ export interface Preset {
   expected: { accepts: string[]; rejects: string[] }
   /** Number of DFA states from subset construction (with the dead state). */
   expectedDfaStates?: number
+  /**
+   * The DFA table worked out by hand (with the dead state), in discovery
+   * order; the first row is the start state. Given where a textbook answer
+   * exists, so the generated table can be compared with it row by row.
+   */
+  expectedDfaTable?: ExpectedDfaRow[]
+  /** Number of states of the minimal complete DFA, worked out by hand (Myhill–Nerode classes). */
+  expectedMinStates?: number
 }
 
 const E = EPSILON
@@ -52,6 +72,16 @@ export const presets: Preset[] = [
       rejects: ['', 'a', 'b', 'ab', 'abba', 'bab', 'abab', 'bbbb'],
     },
     expectedDfaStates: 5,
+    // Aho, Lam, Sethi, Ullman, Compilers (2nd ed.), Fig. 3.35.
+    expectedDfaTable: [
+      { state: 'A', subset: ['0', '1', '2', '4', '7'], final: false, on: { a: 'B', b: 'C' } },
+      { state: 'B', subset: ['1', '2', '3', '4', '6', '7', '8'], final: false, on: { a: 'B', b: 'D' } },
+      { state: 'C', subset: ['1', '2', '4', '5', '6', '7'], final: false, on: { a: 'B', b: 'C' } },
+      { state: 'D', subset: ['1', '2', '4', '5', '6', '7', '9'], final: false, on: { a: 'B', b: 'E' } },
+      { state: 'E', subset: ['1', '2', '4', '5', '6', '7', '10'], final: true, on: { a: 'B', b: 'C' } },
+    ],
+    // {A, C} merge (both mean "no progress towards abb"), giving A/C, B, D, E.
+    expectedMinStates: 4,
   },
   {
     id: 'a-star-b-star-c-star',
@@ -74,6 +104,8 @@ export const presets: Preset[] = [
       rejects: ['ba', 'cb', 'ca', 'abca', 'acb', 'cba'],
     },
     expectedDfaStates: 4,
+    // Still reading a's, b's, c's, or dead: each pair is told apart by one symbol.
+    expectedMinStates: 4,
   },
   {
     id: 'epsilon-cycle',
@@ -97,6 +129,8 @@ export const presets: Preset[] = [
       rejects: ['', 'a', 'ba', 'bba', 'aaa'],
     },
     expectedDfaStates: 2,
+    // "Ends in b" has two classes: last symbol b, or not.
+    expectedMinStates: 2,
   },
   {
     id: 'epsilon-to-final',
@@ -118,6 +152,8 @@ export const presets: Preset[] = [
       rejects: ['aa', 'ba', 'bb', 'abb', 'aab'],
     },
     expectedDfaStates: 4,
+    // Classes: start, after a, after b or ab, dead.
+    expectedMinStates: 4,
   },
   {
     id: 'ends-with-01',
@@ -138,6 +174,13 @@ export const presets: Preset[] = [
       rejects: ['', '0', '1', '10', '011', '010', '0110'],
     },
     expectedDfaStates: 3,
+    // Hopcroft, Motwani, Ullman, Introduction to Automata Theory, Fig. 2.14.
+    expectedDfaTable: [
+      { state: 'A', subset: ['q0'], final: false, on: { '0': 'B', '1': 'A' } },
+      { state: 'B', subset: ['q0', 'q1'], final: false, on: { '0': 'B', '1': 'C' } },
+      { state: 'C', subset: ['q0', 'q2'], final: true, on: { '0': 'B', '1': 'A' } },
+    ],
+    expectedMinStates: 3,
   },
   {
     id: 'unreachable-state',
@@ -159,6 +202,8 @@ export const presets: Preset[] = [
       rejects: ['', 'b', 'aa', 'ba', 'aba'],
     },
     expectedDfaStates: 3,
+    // Start, in ab*, dead; q2 never appears.
+    expectedMinStates: 3,
   },
   {
     id: 'dead-state',
@@ -179,6 +224,14 @@ export const presets: Preset[] = [
       rejects: ['', 'a', 'b', 'aa', 'ba', 'abb', 'aba'],
     },
     expectedDfaStates: 4,
+    // Worked by hand: A·b and every move of C lead to the empty set ∅.
+    expectedDfaTable: [
+      { state: 'A', subset: ['q0'], final: false, on: { a: 'B', b: '∅' } },
+      { state: 'B', subset: ['q1'], final: false, on: { a: '∅', b: 'C' } },
+      { state: '∅', subset: [], final: false, on: { a: '∅', b: '∅' } },
+      { state: 'C', subset: ['q2'], final: true, on: { a: '∅', b: '∅' } },
+    ],
+    expectedMinStates: 4,
   },
   {
     id: 'third-from-end',
@@ -201,6 +254,8 @@ export const presets: Preset[] = [
       rejects: ['', '1', '10', '11', '000', '011', '1000', '0011'],
     },
     expectedDfaStates: 8,
+    // All 2³ suffixes of length 3 are distinguishable, so nothing merges.
+    expectedMinStates: 8,
   },
   {
     id: 'multi-char-symbols',
@@ -223,6 +278,8 @@ export const presets: Preset[] = [
       rejects: ['', 'if', 'x', 'ifif', 'xif', 'ifxx'],
     },
     expectedDfaStates: 4,
+    // Classes: expecting "if", expecting "x", just finished "if x" (final), dead.
+    expectedMinStates: 4,
   },
 ]
 

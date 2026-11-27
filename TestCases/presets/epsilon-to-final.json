@@ -50,5 +50,6 @@
       "aab"
     ]
   },
-  "expectedDfaStates": 4
+  "expectedDfaStates": 4,
+  "expectedMinStates": 4
 }
