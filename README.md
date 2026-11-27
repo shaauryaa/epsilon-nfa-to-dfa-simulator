@@ -6,7 +6,7 @@ Course: CSET302 Automata Theory and Computability, Bennett University · Faculty
 
 Team: Shaurya Nigam (S24CSEU0497), Vishnu Verma (S24CSEU2382), Vaibhav Agarwal (S24CSEU0159), Shivam Srivastava (S24CSEU0507)
 
-Project report: [Report/](Report/)
+[Project report (PDF)](Report/CSET302_EpsilonNFA_to_DFA_Simulator_Project_Report.pdf)
 
 **Live demo:** https://shaauryaa.github.io/epsilon-nfa-to-dfa-simulator/
 
@@ -99,7 +99,7 @@ SourceCode/             Vite + React + TypeScript app
   scripts/              Test-report generator
 TestCases/              Example machines as JSON, and the generated results.csv / results.md
 Screenshots/            Figures for the report and this README
-Report/                 Project report (the final report PDF goes here)
+Report/                 the final project report (PDF and Word)
 docs/                   Architecture, demo script, viva questions
 .github/workflows/      CI: lint, test, test report, e2e, build, deploy to GitHub Pages
 ```
@@ -166,6 +166,10 @@ CI (GitHub Actions) runs lint, unit tests, the test report, the browser tests an
 - **Regex syntax** allows single-character symbols a–z and 0–9 only; `eps` always means ε, so it cannot be read as e·p·s.
 - JFLAP files keep their state positions in the parsed data, but imported machines are laid out automatically.
 - If the deployed page is blank, check that the Vite `base` path matches the repository name.
+
+## Project report
+
+The report covers the theory, design, implementation, testing (372 documented cases) and results: [Project report (PDF)](Report/CSET302_EpsilonNFA_to_DFA_Simulator_Project_Report.pdf).
 
 ## Team and contributions
 
