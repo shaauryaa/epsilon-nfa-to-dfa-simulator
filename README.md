@@ -2,7 +2,11 @@
 
 An interactive web tool that converts an ε-NFA into an equivalent DFA, shows every step of the conversion, tests strings on both machines and minimises the result.
 
-Course: CSET302 Automata Theory and Computability, Bennett University · Guide: Dr. Sunil Kumar
+Course: CSET302 Automata Theory and Computability, Bennett University · Faculty guide: Dr. Sunil Kumar
+
+Team: Shaurya Nigam (S24CSEU0497), Vishnu Verma (S24CSEU2382), Vaibhav Agarwal (S24CSEU0159), Shivam Srivastava (S24CSEU0507)
+
+Project report: [Report/](Report/)
 
 **Live demo:** https://shaauryaa.github.io/epsilon-nfa-to-dfa-simulator/
 
@@ -19,13 +23,13 @@ The app has four modes, one per tab:
 | **Test** | Run a string on the ε-NFA and the DFA at the same time, symbol by symbol, with traces; batch-test many strings with expected results; check equivalence on all strings up to a length. |
 | **Minimize** | Moore partition refinement, round by round, with the split that happens in each round, then the minimal DFA next to the original. |
 
-Every DFA (converted or minimised) downloads as JFLAP `.jff`, JSON, text, Graphviz `.dot`, CSV, PNG, SVG, Python or JavaScript code. A full PDF report covers the input, ε-closures, the working table, the DFA, minimisation and test results.
+Every DFA (converted or minimised) downloads in 9 formats: JFLAP `.jff`, JSON, text, Graphviz `.dot`, CSV, PNG, SVG, Python or JavaScript code. In addition, a full PDF report covers the input, ε-closures, the working table, the DFA, minimisation and test results.
 
 ## Features
 
 - **From regex:** type `(a|b)*abb` and get its Thompson ε-NFA (states numbered in construction order).
 - Builder with live validation (undeclared states, symbols outside Σ, unreachable states), undo / redo, and a text format.
-- Nine example machines, including the textbook (a|b)*abb machine, an ε-cycle, a dead-state case, the 2ⁿ blow-up and multi-character symbols.
+- 9 example machines, including the textbook (a|b)*abb machine, an ε-cycle, a dead-state case, the 2ⁿ blow-up and multi-character symbols.
 - Import `.json`, `.jff` (JFLAP) and `.txt` files; export the ε-NFA as JSON.
 - Animated subset construction with a player (step, play, speed, skip), a bottom step timeline and a dead-state ∅ toggle.
 - Working table: T | symbol | move(T, a) | ε-closure | DFA state (new or existing), one row per step.
@@ -95,7 +99,7 @@ SourceCode/             Vite + React + TypeScript app
   scripts/              Test-report generator
 TestCases/              Example machines as JSON, and the generated results.csv / results.md
 Screenshots/            Figures for the report and this README
-Report/                 Project report
+Report/                 Project report (the final report PDF goes here)
 docs/                   Architecture, demo script, viva questions
 .github/workflows/      CI: lint, test, test report, e2e, build, deploy to GitHub Pages
 ```
@@ -165,12 +169,16 @@ CI (GitHub Actions) runs lint, unit tests, the test report, the browser tests an
 
 ## Team and contributions
 
-| Name | Enrollment No. | Contributions |
-| --- | --- | --- |
-| Shaurya Nigam | S24CSEU0497 | TODO: list Shaurya's contributions |
-| Vishnu Verma | S24CSEU2382 | TODO: list Vishnu's contributions |
+| Member | Enrolment No. | Contributions |
+|---|---|---|
+| Shaurya Nigam | S24CSEU0497 | Project lead. Designed the architecture; implemented the ε-closure, subset construction and minimization algorithms, the Convert and Minimize views and the step animation; set up testing, CI and deployment; wrote most of the report. |
+| Vishnu Verma | S24CSEU2382 | Implemented the Define tab (builder, table, text format, validation), the Test tab with string simulation and batch tester, import/export formats and the PDF report; wrote unit and end-to-end tests; co-wrote the report. |
+| Vaibhav Agarwal | S24CSEU0159 | Helped prepare example machines and test strings; proofread the report. |
+| Shivam Srivastava | S24CSEU0507 | Helped collect screenshots and check expected results in the test tables. |
 
-Guide: **Dr. Sunil Kumar**, Bennett University.
+All members reviewed the test cases and took part in preparing the demonstration.
+
+Faculty guide: **Dr. Sunil Kumar**. Course: CSET302 Automata Theory and Computability, Bennett University.
 
 ## References
 
