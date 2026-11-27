@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import ReactFlow, { Background, BackgroundVariant, Controls, Panel, ReactFlowProvider, useReactFlow, type Edge, type Node } from 'reactflow'
-import { dfaToENFA, epsilonClosureTrace, formatSet, type DFA, type SubsetStep } from '../../core'
+import { epsilonClosureTrace, formatSet, type SubsetStep } from '../../core'
 import { NODE_SIZE, type XY } from '../../graph/layout'
-import { captionRects, dfaCaption, layoutDFA } from '../../model/dfaLayout'
+import { dfaCaption, layoutDFA } from '../../model/dfaLayout'
 import { FRAME_MS, type Frame } from '../../model/convertPlan'
 import { largeDfaNotice } from '../../model/largeDfa'
 import { mergedEdges } from '../../model/graph'
@@ -15,6 +15,7 @@ import { MIN_ZOOM, StateNode, TransitionEdge, type StateNodeData, type Transitio
 import { CanvasMiniMap, MapToggle, toolButton } from '../canvas/GraphView'
 import { Button } from '../ui/Button'
 import { AlertIcon, FitIcon } from '../ui/Icons'
+import { dfaRoutes } from '../canvas/dfaRoutes'
 import { useConversion, useConvertClock, useConvertView, type ConvertView } from './useConversion'
 import type { Conversion } from '../../store/convert'
 
@@ -23,31 +24,9 @@ const edgeTypes = { transition: TransitionEdge }
 const R = NODE_SIZE / 2
 
 
-type DfaShape = { merged: ReturnType<typeof mergedEdges>; routes: ReturnType<typeof routeAll> }
-const dfaShapes = new WeakMap<DFA, Map<string, DfaShape>>()
-
-/**
- * Edges and routes of the part of a DFA found so far. Routing only changes
- * when a state or edge is added, so results are cached per shape and reused
- * across the frames of a step.
- */
-function dfaRoutes(dfa: DFA, layout: Record<string, XY>, states: string[], transitions: DFA['transitions']): DfaShape {
-  const key = `${states.join(',')}|${JSON.stringify(transitions)}`
-  let cache = dfaShapes.get(dfa)
-  if (!cache) dfaShapes.set(dfa, (cache = new Map()))
-  const hit = cache.get(key)
-  if (hit) return hit
-  const merged = mergedEdges(dfaToENFA({ ...dfa, states, transitions }))
-  const centres = new Map<string, XY>(states.map((s) => [s, { x: (layout[s]?.x ?? 0) + R, y: (layout[s]?.y ?? 0) + R }]))
-  const captions = Object.fromEntries(states.map((s) => [s, dfaCaption(dfa, s)]))
-  const shape = { merged, routes: routeAll(merged, centres, captionRects(layout, captions, states)) }
-  cache.set(key, shape)
-  return shape
-}
-
 const hasPair = (list: readonly [string, string][], a: string, b: string) => list.some(([x, y]) => x === a && y === b)
 
-interface PaneProps {
+export interface PaneProps {
   title: string
   subtitle: ReactNode
   nodes: Node<StateNodeData>[]
@@ -58,13 +37,15 @@ interface PaneProps {
   stateCount: number
   /** States the current animation frame involves; the camera pans to keep them in view. */
   focus?: string[]
+  /** How the automatic view frames the graph: readable zoom from the left (default) or the whole graph. */
+  fitMode?: 'readable' | 'whole'
 }
 
 /** Time for the camera to follow playback, in ms. */
 const FOLLOW_MS = 360
 
 /** One read-only React Flow canvas with a title, Fit and Map controls. */
-function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus }: PaneProps) {
+export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus, fitMode = 'readable' }: PaneProps) {
   const rf = useReactFlow()
   const wrapper = useRef<HTMLDivElement>(null)
   const [mapChoice, setMapChoice] = useState<boolean | null>(null)
@@ -80,9 +61,9 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
     fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole' })
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))
     return () => cancelAnimationFrame(id)
-  }, [fitKey, rf])
+  }, [fitKey, rf, fitMode])
 
   // Follow playback: pan (and zoom out only if needed) to bring the frame's states into view.
   const focusKey = focus && focus.length > 0 ? focus.join(',') : ''
@@ -110,14 +91,14 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))
     })
     ro.observe(el)
     return () => {
       ro.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [rf])
+  }, [rf, fitMode])
 
   return (
     <div ref={wrapper} className="relative h-full min-w-0 flex-1 bg-slate-50">
@@ -131,7 +112,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
         elementsSelectable={false}
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current }))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
@@ -163,7 +144,7 @@ function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount, focus
   )
 }
 
-function Swatch({ className, label }: { className: string; label: string }) {
+export function Swatch({ className, label }: { className: string; label: string }) {
   return (
     <span className="flex items-center gap-1.5">
       <span aria-hidden="true" className={`inline-block size-3.5 rounded-full border-[1.6px] ${className}`} />
@@ -398,7 +379,7 @@ function TooLargeToBuild({ message }: { message: string }) {
 }
 
 /** Shown instead of the panes while the machine has errors. */
-function NotConvertible() {
+export function NotConvertible() {
   const errors = useApp((s) => s.validation.errors.length)
   const failure = useApp((s) => s.error)
   const setTab = useApp((s) => s.setActiveTab)

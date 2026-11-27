@@ -19,6 +19,7 @@ import { getConversion, useConvert } from '../../store/convert'
 import { toast } from '../../store/toasts'
 import { dfaCaptions, layoutDFA } from '../../model/dfaLayout'
 import { MAX_DRAWN_DFA_STATES } from '../../model/largeDfa'
+import { reportTests } from '../test/testExports'
 
 /** DFA download formats offered on the result card. */
 export type DfaFormat = 'jff' | 'json' | 'txt' | 'dot' | 'csv' | 'png' | 'svg' | 'py' | 'js'
@@ -73,7 +74,7 @@ async function saveDiagram(d: Diagram, name: string, kind: 'png' | 'svg') {
   else saveBlob(name, await svgToPng(d.svg, d.width, d.height))
 }
 
-async function run(label: string, fn: () => Promise<string | null> | string | null) {
+export async function run(label: string, fn: () => Promise<string | null> | string | null) {
   try {
     const name = await fn()
     if (name) toast({ message: `Downloaded ${name}`, tone: 'success' })
@@ -169,6 +170,7 @@ export function downloadReport(): Promise<void> {
       nfaDiagram: nfaDiagram(),
       dfaDiagram: dfaDiagram(),
       when,
+      tests: reportTests(),
     })
     const name = exportFileName(slug, 'report', 'pdf', when)
     saveBlob(name, blob)

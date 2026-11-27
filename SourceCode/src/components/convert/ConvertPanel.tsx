@@ -4,6 +4,7 @@ import { LARGE_TABLE_PAGE, largeDfaNotice, pageOf } from '../../model/largeDfa'
 import type { Conversion } from '../../store/convert'
 import { useApp } from '../../store/automaton'
 import { useConvert } from '../../store/convert'
+import type { PlayerStore } from '../../store/player'
 import { Section } from '../builder/Section'
 import { Button } from '../ui/Button'
 import {
@@ -24,7 +25,7 @@ import { Popover } from '../ui/Popover'
 import { DFA_FORMATS, downloadDfa } from './exports'
 import { useConversion, useConvertView, type ConvertView } from './useConversion'
 
-function ControlButton({ label, onClick, disabled, primary, children }: { label: string; onClick: () => void; disabled?: boolean; primary?: boolean; children: ReactNode }) {
+export function ControlButton({ label, onClick, disabled, primary, children }: { label: string; onClick: () => void; disabled?: boolean; primary?: boolean; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -41,7 +42,7 @@ function ControlButton({ label, onClick, disabled, primary, children }: { label:
   )
 }
 
-function Switch({ checked, onChange, label, id }: { checked: boolean; onChange: (on: boolean) => void; label: ReactNode; id: string }) {
+export function Switch({ checked, onChange, label, id }: { checked: boolean; onChange: (on: boolean) => void; label: ReactNode; id: string }) {
   return (
     <label htmlFor={id} className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 select-none">
       <span className="relative inline-flex">
@@ -54,17 +55,20 @@ function Switch({ checked, onChange, label, id }: { checked: boolean; onChange: 
   )
 }
 
-/** Skip back, step back, play/pause, step forward, skip forward, speed and Instant. */
-function Player({ total }: { total: number }) {
-  const step = useConvert((s) => s.step)
-  const playing = useConvert((s) => s.playing)
-  const speed = useConvert((s) => s.speed)
-  const instant = useConvert((s) => s.instant)
-  const c = useConvert.getState()
+/**
+ * Skip back, step back, play/pause, step forward, skip forward, speed and
+ * Instant, for any player store (Convert and Test each have one).
+ */
+export function Player({ total, store = useConvert, id = 'convert', label = 'Player' }: { total: number; store?: PlayerStore; id?: string; label?: string }) {
+  const step = store((s) => s.step)
+  const playing = store((s) => s.playing)
+  const speed = store((s) => s.speed)
+  const instant = store((s) => s.instant)
+  const c = store.getState()
   const atStart = step === 0
   const atEnd = step >= total - 1
   return (
-    <section aria-label="Player" className="border-b border-slate-200 px-4 py-3">
+    <section aria-label={label} className="border-b border-slate-200 px-4 py-3">
       <div role="toolbar" aria-label="Playback" className="flex items-center justify-between gap-1.5">
         <ControlButton label="Skip back to the start" onClick={c.skipBack} disabled={atStart && !playing}>
           <SkipBackIcon size={15} />
@@ -83,11 +87,11 @@ function Player({ total }: { total: number }) {
         </ControlButton>
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <label htmlFor="convert-speed" className="text-xs font-medium text-slate-600">
+        <label htmlFor={`${id}-speed`} className="text-xs font-medium text-slate-600">
           Speed
         </label>
         <input
-          id="convert-speed"
+          id={`${id}-speed`}
           type="range"
           min={0.25}
           max={3}
@@ -101,7 +105,7 @@ function Player({ total }: { total: number }) {
       </div>
       <div className="mt-2.5 flex items-center justify-between">
         <Switch
-          id="convert-instant"
+          id={`${id}-instant`}
           checked={instant}
           onChange={c.setInstant}
           label={
@@ -256,7 +260,7 @@ function ClosureTable() {
   )
 }
 
-function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2" title={hint}>
       <dt className="mb-0.5 text-[11px] text-slate-500">{label}</dt>
@@ -369,14 +373,14 @@ function ResultCard({ view }: { view: ConvertView }) {
 }
 
 /** Right sidebar in Convert mode while the machine has errors. */
-function ConvertErrors() {
+export function ConvertErrors({ title = 'Subset construction' }: { title?: string }) {
   const errors = useApp((s) => s.validation.errors)
   const failure = useApp((s) => s.error)
   const setTab = useApp((s) => s.setActiveTab)
   if (failure && errors.length === 0) {
     return (
       <section className="px-4 py-4">
-        <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">Subset construction</h2>
+        <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">{title}</h2>
         <p role="status" className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-pretty text-slate-700">
           {failure}
         </p>
@@ -385,7 +389,7 @@ function ConvertErrors() {
   }
   return (
     <section className="px-4 py-4">
-      <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">Subset construction</h2>
+      <h2 className="text-xs font-semibold tracking-wider text-slate-700 uppercase">{title}</h2>
       <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-red-800">
           <AlertIcon size={14} className="text-red-600" /> Fix {errors.length === 1 ? 'this error' : `these ${errors.length} errors`} first

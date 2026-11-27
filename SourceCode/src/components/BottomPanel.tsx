@@ -1,6 +1,7 @@
 import { useApp, type Tab } from '../store/automaton'
 import { useConvert } from '../store/convert'
 import { useConversion, useConvertTimeline } from './convert/useConversion'
+import { TestTimeline } from './test/TestTimeline'
 import { Timeline } from './Timeline'
 
 const HINTS: Record<Tab, string> = {
@@ -37,7 +38,7 @@ export function BottomPanel() {
   const tab = useApp((s) => s.activeTab)
   return (
     <section aria-label="Timeline" className="shrink-0 border-t border-slate-200 bg-white">
-      {tab === 'convert' ? <ConvertTimeline /> : <Timeline steps={[]} current={-1} hint={HINTS[tab]} />}
+      {tab === 'convert' ? <ConvertTimeline /> : tab === 'test' ? <TestTimeline /> : <Timeline steps={[]} current={-1} hint={HINTS[tab]} />}
     </section>
   )
 }

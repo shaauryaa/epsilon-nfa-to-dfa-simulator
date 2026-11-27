@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useApp } from '../store/automaton'
 import { downloadDfa, downloadNfaImage, downloadReport, downloadStepLog } from './convert/exports'
+import { downloadBatchCSV, downloadRunCSV } from './test/testExports'
 import { ChevronIcon, DownloadIcon, FileIcon, ImageIcon, TableIcon, TextIcon } from './ui/Icons'
 import { Popover } from './ui/Popover'
 
@@ -17,7 +18,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
     items: [
       {
         label: 'Download full report (PDF)',
-        hint: 'ε-NFA, ε-closures, every step, the DFA, the mapping and minimisation.',
+        hint: 'ε-NFA, ε-closures, every step, the DFA, the mapping, minimisation and the string tests.',
         icon: <FileIcon size={15} />,
         run: downloadReport,
       },
@@ -38,6 +39,13 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { label: 'DFA table (CSV)', hint: 'Opens in Excel or Google Sheets', icon: <TableIcon size={15} />, run: () => downloadDfa('csv') },
       { label: 'DFA (JSON)', hint: 'Re-import with Import', icon: <FileIcon size={15} />, run: () => downloadDfa('json') },
       { label: 'Step log (TXT)', hint: 'Every subset construction step', icon: <TextIcon size={15} />, run: downloadStepLog },
+    ],
+  },
+  {
+    title: 'Tests',
+    items: [
+      { label: 'String test result (CSV)', hint: 'Both verdicts and every step for the Test tab’s input', icon: <TableIcon size={15} />, run: downloadRunCSV },
+      { label: 'Batch test results (CSV)', hint: 'Expected and generated result for each string', icon: <TableIcon size={15} />, run: downloadBatchCSV },
     ],
   },
 ]

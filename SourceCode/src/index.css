@@ -124,6 +124,19 @@ body {
   transition-delay: var(--role-delay, 0ms);
 }
 
+/* Test mode: a branch with no move on the symbol fades out. Opacity only, so it stays on the compositor. */
+.state-node {
+  transition: opacity 240ms var(--ease-out-strong);
+}
+.state-faded {
+  opacity: 0.3;
+}
+
+/* The tape head slides to the next cell. */
+.tape-head {
+  transition: transform 260ms var(--ease-out-strong);
+}
+
 /* The set S pulses: a ring expands from the circle and fades. Transform and opacity only. */
 .state-pulse {
   border: 3px solid var(--color-blue-500);
@@ -218,6 +231,9 @@ body {
   }
   .edge-draw {
     animation: none;
+  }
+  .tape-head {
+    transition: none;
   }
   .state-circle,
   .state-circle > span {

@@ -49,6 +49,8 @@ export interface StateNodeData {
   readOnly?: boolean
   /** Animation length for pulse, flash and grow, in ms. */
   motionMs?: number
+  /** Test mode: this state's branch died on the current symbol; drawn faded. */
+  faded?: boolean
 }
 
 /** A token travelling along an edge during the move(S, a) micro-step. */
@@ -109,7 +111,7 @@ export const StateNode = memo(function StateNode({ data, selected }: NodeProps<S
   const motion = { '--motion-ms': `${data.motionMs ?? 600}ms` } as CSSProperties
   const delay = { '--role-delay': `${data.roleDelay ?? 0}ms` } as CSSProperties
   return (
-    <div className={`group relative ${data.entering ? 'node-enter' : ''}`} style={{ width: NODE_SIZE, height: NODE_SIZE, ...motion }}>
+    <div className={`group relative state-node ${data.entering ? 'node-enter' : ''} ${data.faded ? 'state-faded' : ''}`} style={{ width: NODE_SIZE, height: NODE_SIZE, ...motion }}>
       {data.start && (
         <div aria-hidden="true" className="pointer-events-none absolute top-1/2 -translate-y-1/2" style={{ left: -46, width: 46, height: 28 }}>
           <span className="absolute -top-1.5 left-0.5 text-[10px] font-semibold tracking-wide text-slate-600 select-none">start</span>

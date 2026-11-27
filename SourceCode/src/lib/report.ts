@@ -8,6 +8,7 @@
 
 import { EPSILON, formatSet, type ENFA, type MinimizeResult, type SubsetResult } from '../core'
 import { deadStateNote, minimisationSummary } from '../model/reportText'
+import { statusLabel, verdictLabel, type BatchRow } from '../model/testRun'
 import type { Diagram } from '../model/svg'
 import { blobToDataURL, svgToPng } from './download'
 
@@ -25,6 +26,20 @@ export interface ReportInput {
   /** `null` when the DFA is too large to draw. */
   dfaDiagram: Diagram | null
   when: Date
+  /** Results from the Test tab; the section is left out when `null`. */
+  tests?: ReportTests | null
+}
+
+/** The report's "Test strings" section. */
+export interface ReportTests {
+  /** The string in the Test tab's input box. */
+  single:
+    | { input: string; nfaAccepted: boolean; dfaAccepted: boolean; nfaTrace: string; dfaTrace: string }
+    | { input: string; invalid: string }
+    | null
+  /** The batch table; `fromPreset` when it is the preset's expected strings (no batch was run). */
+  batch: { rows: BatchRow[]; summary: string; fromPreset: boolean } | null
+  equivalence: { ok: boolean; text: string } | null
 }
 
 /** Longest table printed in full; larger DFAs print this many rows and point to the CSV download. */
@@ -214,6 +229,27 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
   }
   const min = input.minimized.dfa
   para(`Minimal DFA: ${min.states.length} state${min.states.length === 1 ? '' : 's'}, start ${min.start}, final ${min.finals.length > 0 ? min.finals.join(', ') : 'none'}.`)
+
+  const tests = input.tests
+  if (tests) {
+    heading('7. Test strings')
+    const t = tests.single
+    if (t && 'invalid' in t) {
+      para(`Input “${t.input}”: ${t.invalid} It is an invalid input, not a rejection.`)
+    } else if (t) {
+      para(`Input ${t.input === 'ε' ? 'ε (the empty string)' : `“${t.input}”`}: the ε-NFA ${t.nfaAccepted ? 'accepts' : 'rejects'} it and the DFA ${t.dfaAccepted ? 'accepts' : 'rejects'} it${t.nfaAccepted === t.dfaAccepted ? ' (both machines agree)' : ' (the machines disagree)'}.`)
+      para(`ε-NFA trace: ${t.nfaTrace}`, 9)
+      para(`DFA trace: ${t.dfaTrace}`, 9)
+    }
+    if (tests.batch) {
+      para(`${tests.batch.fromPreset ? 'The preset’s expected strings' : 'Batch test'}: ${tests.batch.summary}. PASS means the ε-NFA, the DFA and the minimal DFA give the same verdict, which also matches the expected one where it is known.`)
+      table(
+        ['#', 'String', 'Expected', 'ε-NFA', 'DFA', 'Min-DFA', 'Status'],
+        tests.batch.rows.slice(0, MAX_TABLE_ROWS).map((r) => [String(r.index), r.display, verdictLabel(r.expected), verdictLabel(r.nfa), verdictLabel(r.dfa), verdictLabel(r.min), statusLabel(r.status)]),
+      )
+    }
+    if (tests.equivalence) para(`Equivalence check: ${tests.equivalence.text}`)
+  }
 
   const pages = doc.getNumberOfPages()
   for (let i = 1; i <= pages; i++) {

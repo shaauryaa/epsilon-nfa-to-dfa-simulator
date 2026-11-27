@@ -4,6 +4,7 @@ import { BottomPanel } from './components/BottomPanel'
 import { LeftSidebar } from './components/builder/LeftSidebar'
 import { GraphView } from './components/canvas/GraphView'
 import { ConvertCanvas } from './components/convert/ConvertCanvas'
+import { TestCanvas } from './components/test/TestCanvas'
 import { AboutDialog, DocsDialog } from './components/InfoDialogs'
 import { RightSidebar } from './components/inspector/RightSidebar'
 import { Navbar } from './components/Navbar'
@@ -67,11 +68,12 @@ function App() {
   const [builderChoice, setBuilderChoice] = useState<boolean | null>(null)
   useHistoryShortcuts()
   const convert = tab === 'convert'
-  // In Convert the builder starts collapsed at every width, so both canvases get the room; the rail reopens it.
-  const builderOpen = !convert || (builderChoice ?? false)
+  const split = convert || tab === 'test'
+  // In Convert and Test the builder starts collapsed at every width, so both canvases get the room; the rail reopens it.
+  const builderOpen = !split || (builderChoice ?? false)
   const geometry = {
     '--left-w': builderOpen ? '360px' : '44px',
-    '--right-w': convert ? '384px' : '320px',
+    '--right-w': split ? '384px' : '320px',
   } as CSSProperties
 
   return (
@@ -79,11 +81,13 @@ function App() {
       <Navbar onDocs={openDocs} onAbout={openAbout} />
       <main id="workspace" role="tabpanel" aria-labelledby={`tab-${tab}`} className="flex min-h-0 flex-1 overflow-hidden">
         <h2 className="sr-only">{TABS.find((t) => t.id === tab)?.label}</h2>
-        {builderOpen ? <LeftSidebar onCollapse={convert ? () => setBuilderChoice(false) : undefined} /> : <BuilderRail onOpen={() => setBuilderChoice(true)} />}
+        {builderOpen ? <LeftSidebar onCollapse={split ? () => setBuilderChoice(false) : undefined} /> : <BuilderRail onOpen={() => setBuilderChoice(true)} />}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <section aria-label={convert ? 'ε-NFA and DFA diagrams' : 'State diagram'} className="min-h-0 flex-1">
+          <section aria-label={split ? 'ε-NFA and DFA diagrams' : 'State diagram'} className="min-h-0 flex-1">
             {convert ? (
               <ConvertCanvas />
+            ) : tab === 'test' ? (
+              <TestCanvas />
             ) : (
               <ReactFlowProvider>
                 <GraphView />

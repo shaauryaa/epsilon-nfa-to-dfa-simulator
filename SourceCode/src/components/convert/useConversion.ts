@@ -3,6 +3,7 @@ import type { SubsetStep } from '../../core'
 import { dfaProgress, stepPill, type DfaProgress, type Frame } from '../../model/convertPlan'
 import { useApp } from '../../store/automaton'
 import { frameDelay, getConversion, useConvert, type Conversion } from '../../store/convert'
+import type { PlayerStore } from '../../store/player'
 
 /** The conversion for the current machine and dead-state setting, or `null` while the machine has errors. */
 export function useConversion(): Conversion | null {
@@ -73,10 +74,20 @@ export function useConvertClock(): void {
     return () => window.clearTimeout(id)
   }, [conversion, playing, stepping, step, frame, speed, instant])
 
+  usePlayerKeys(useConvert)
+}
+
+/**
+ * Player keyboard shortcuts while a tab is open: Space plays or pauses,
+ * ←/→ step. Ignored while typing, and Space is left to focused buttons.
+ *
+ * @param store - The player store to drive.
+ */
+export function usePlayerKeys(store: PlayerStore): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || typingTarget(e.target)) return
-      const s = useConvert.getState()
+      const s = store.getState()
       if (e.key === ' ' || e.code === 'Space') {
         // A focused button would also click on Space; let it, unless it is not a player control.
         const el = e.target as HTMLElement
@@ -95,7 +106,7 @@ export function useConvertClock(): void {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [store])
 }
 
 /** Timeline pills for the bottom panel: one per subset step. */
