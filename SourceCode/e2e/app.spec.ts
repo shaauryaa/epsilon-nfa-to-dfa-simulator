@@ -125,13 +125,13 @@ test.describe('Test', () => {
     await expect(verdict(page, 'DFA')).toContainText('REJECTED')
   })
 
-  test('abc shows the invalid-symbol error at position 2, not a rejection', async ({ page }) => {
+  test('abc shows the invalid-symbol error as symbol 3, not a rejection', async ({ page }) => {
     await openApp(page)
     await loadPreset(page, 'thompson-abb')
     await openTab(page, 'Test')
     await input(page).fill('abc')
     const error = page.getByRole('alert').filter({ hasText: 'not in Σ' })
-    await expect(error).toContainText('“c” at position 2 is not in Σ = {a, b}.')
+    await expect(error).toContainText('“c” (symbol 3) is not in Σ = {a, b}.')
     await expect(error).toContainText('This is an invalid input, not a rejection.')
     await expect(page.getByText('REJECTED')).toHaveCount(0)
   })

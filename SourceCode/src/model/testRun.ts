@@ -30,6 +30,8 @@ export type InputCheck =
       symbol: string
       /** 0-based character position of `symbol` in the input, as in `InputSymbolError` and the test report. */
       position: number
+      /** 1-based number of the bad symbol in the input, as shown to people. */
+      symbolNumber: number
       message: string
     }
 
@@ -40,8 +42,8 @@ export type InputCheck =
  * @param input - The raw input; empty, blank or a lone `ε` means the empty string.
  * @param alphabet - Σ.
  * @returns The tokens, or the bad symbol, its 0-based position (in
- *   characters, so `ε` or an emoji counts as one; the same numbering as
- *   `InputSymbolError` and the test report) and a message.
+ *   characters, so `ε` or an emoji counts as one), its 1-based symbol
+ *   number and a message that uses the 1-based number.
  * @throws Never throws; errors other than {@link InputSymbolError} are rethrown.
  */
 export function checkInput(input: string, alphabet: readonly string[]): InputCheck {
@@ -50,11 +52,14 @@ export function checkInput(input: string, alphabet: readonly string[]): InputChe
   } catch (e) {
     if (!(e instanceof InputSymbolError)) throw e
     const position = [...input.slice(0, e.position)].length
+    // People count from 1: the bad piece is symbol n of the input (symbols before it, plus one).
+    const symbolNumber = tokenize(input.slice(0, e.position), alphabet).length + 1
     return {
       ok: false,
       symbol: e.character,
       position,
-      message: `“${e.character}” at position ${position} is not in Σ = {${alphabet.join(', ')}}.`,
+      symbolNumber,
+      message: `“${e.character}” (symbol ${symbolNumber}) is not in Σ = {${alphabet.join(', ')}}.`,
     }
   }
 }

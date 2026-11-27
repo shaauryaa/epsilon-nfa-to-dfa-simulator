@@ -176,17 +176,17 @@ export async function buildReport(input: ReportInput): Promise<Blob> {
   )
 
   const bigSteps = steps.length > MAX_TABLE_ROWS
-  heading('3. Subset construction steps')
+  heading('3. Working table (subset construction steps)')
   if (bigSteps) para(`${steps.length.toLocaleString()} steps; the first ${MAX_TABLE_ROWS} are listed. Download the step log for all of them.`)
   table(
-    ['#', 'From', 'Symbol', 'move', 'ε-closure', 'To'],
+    ['#', 'T', 'Symbol', 'move(T, a)', 'ε-closure', 'DFA state'],
     steps.slice(0, MAX_TABLE_ROWS).map((s) => [
       String(s.index + 1),
       s.kind === 'start' ? 'start' : s.kind === 'done' ? 'done' : `${s.from} = ${formatSet(s.fromSet ?? [])}`,
       s.symbol ?? '',
       s.moveSet ? formatSet(s.moveSet) : s.kind === 'start' ? `{${nfa.start}}` : '',
       s.kind === 'done' ? '' : formatSet(s.closureSet),
-      s.to === null ? (s.kind === 'done' ? '' : '— (none)') : `${s.to}${s.isNew ? ' (new)' : ''}`,
+      s.to === null ? (s.kind === 'done' ? '' : '— (none)') : `${s.to} (${s.isNew ? 'new' : 'existing'})`,
     ]),
   )
   if (!bigSteps) for (const s of steps) para(`${s.index + 1}. ${s.explanation}`, 9)

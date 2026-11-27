@@ -6,8 +6,7 @@ import { TestTimeline } from './test/TestTimeline'
 import { Timeline } from './Timeline'
 
 const HINTS: Record<Tab, string> = {
-  define:
-    'Build the ε-NFA on the left. On the canvas: double-click to add a state, drag from a state’s blue dot to connect, right-click a state to set start or final.',
+  define: 'Canvas: double-click adds a state · drag a blue dot to connect · right-click a state for start / final.',
   convert: 'Fix the machine’s errors in Define to see the subset construction steps here.',
   test: 'Run a string in Test mode to see each step here.',
   minimize: 'Partition refinement rounds play here.',

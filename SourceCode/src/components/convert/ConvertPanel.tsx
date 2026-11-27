@@ -222,6 +222,63 @@ function DfaTable({ view }: { view: ConvertView }) {
   )
 }
 
+/**
+ * The textbook working table: one row per step so far, T | symbol |
+ * move(T, a) | ε-closure | DFA state (new or existing). Collapsed by default.
+ */
+function WorkingTable({ view }: { view: ConvertView }) {
+  const [open, setOpen] = useState(false)
+  const nfaStart = useApp((s) => s.nfa.start)
+  const { steps } = view.conversion.result
+  const rows = steps.slice(0, view.step.index + 1).filter((s) => s.kind !== 'done')
+  const head = 'px-1.5 py-1.5 text-left font-semibold whitespace-nowrap'
+  return (
+    <Section
+      title="Working table"
+      icon={<TableIcon size={13} />}
+      meta={`${rows.length} / ${steps.length - 1}`}
+      collapsible={{ open, onToggle: () => setOpen((o) => !o) }}
+    >
+      <div className="max-h-72 overflow-auto rounded-lg border border-slate-200">
+        <table className="w-full border-collapse font-mono text-[11px]" aria-label="Working table">
+          <thead className="sticky top-0 bg-slate-50 font-sans text-slate-600">
+            <tr>
+              <th scope="col" className={head}>T</th>
+              <th scope="col" className={head} title="Symbol">a</th>
+              <th scope="col" className={head}>move(T, a)</th>
+              <th scope="col" className={head}>ε-closure</th>
+              <th scope="col" className={head}>DFA state</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => {
+              const current = s.index === view.step.index
+              return (
+                <tr key={s.index} aria-current={current ? 'true' : undefined} className={`border-t border-slate-100 align-top ${current ? 'bg-blue-50' : ''}`}>
+                  <td className="px-1.5 py-1 font-semibold text-slate-900">{s.kind === 'start' ? 'start' : s.from}</td>
+                  <td className="px-1.5 py-1 text-blue-700">{s.symbol ?? '—'}</td>
+                  <td className="px-1.5 py-1 whitespace-nowrap text-slate-700">{s.kind === 'start' ? `{${nfaStart}}` : formatSet(s.moveSet ?? [])}</td>
+                  <td className="px-1.5 py-1 whitespace-nowrap text-slate-700">{formatSet(s.closureSet)}</td>
+                  <td className="px-1.5 py-1 whitespace-nowrap">
+                    {s.to === null ? (
+                      <span className="text-slate-400">— (none)</span>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-slate-900">{s.to}</span>{' '}
+                        <span className={`font-sans ${s.isNew ? 'text-emerald-700' : 'text-slate-500'}`}>{s.isNew ? 'new' : 'existing'}</span>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  )
+}
+
 /** Each state's ε-closure; picking a row highlights it on the ε-NFA. */
 function ClosureTable() {
   const closures = useApp((s) => s.closures)
@@ -513,6 +570,7 @@ export function ConvertPanel() {
       <Explanation view={view} />
       {finished && <ResultCard view={view} />}
       <DfaTable view={view} />
+      <WorkingTable view={view} />
       <ClosureTable />
       <ConvertStats result={view.conversion.result} />
     </>

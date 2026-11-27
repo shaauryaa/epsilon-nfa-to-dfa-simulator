@@ -90,15 +90,16 @@ presets.forEach((p, pi) => {
   // Expected rejection of input outside Σ: an accepted string with a stray symbol appended.
   const stray = ['z', '#', '2', '!'].find((c) => !p.nfa.alphabet.some((a) => a.includes(c)))!
   const bad = `${p.expected.accepts[0] ?? ''}${stray}`
-  const position = bad.indexOf(stray)
+  // Shown 1-based: the stray symbol comes after every symbol of the accepted string.
+  const symbolNumber = tokenize(bad.slice(0, bad.indexOf(stray)), p.nfa.alphabet).length + 1
   let got: string
   try {
     tokenize(bad, p.nfa.alphabet)
     got = 'no error'
   } catch (e) {
-    got = e instanceof InputSymbolError ? `InputSymbolError "${e.character}" at position ${e.position}` : String(e)
+    got = e instanceof InputSymbolError ? `InputSymbolError "${e.character}" (symbol ${tokenize(bad.slice(0, e.position), p.nfa.alphabet).length + 1})` : String(e)
   }
-  add(nextId(), 'Invalid symbol → InputSymbolError', p.name, bad, `InputSymbolError "${stray}" at position ${position}`, got)
+  add(nextId(), 'Invalid symbol → InputSymbolError', p.name, bad, `InputSymbolError "${stray}" (symbol ${symbolNumber})`, got)
 })
 
 validationCases.forEach((c, i) => {

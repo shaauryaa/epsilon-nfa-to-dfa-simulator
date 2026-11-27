@@ -46,7 +46,7 @@ P01-44,Minimal DFA simulation,Thompson ε-NFA for (a|b)*abb,abab,Reject,Reject,P
 P01-45,ε-NFA simulation,Thompson ε-NFA for (a|b)*abb,bbbb,Reject,Reject,PASS
 P01-46,DFA simulation,Thompson ε-NFA for (a|b)*abb,bbbb,Reject,Reject,PASS
 P01-47,Minimal DFA simulation,Thompson ε-NFA for (a|b)*abb,bbbb,Reject,Reject,PASS
-P01-48,Invalid symbol → InputSymbolError,Thompson ε-NFA for (a|b)*abb,abbz,"InputSymbolError ""z"" at position 3","InputSymbolError ""z"" at position 3",PASS
+P01-48,Invalid symbol → InputSymbolError,Thompson ε-NFA for (a|b)*abb,abbz,"InputSymbolError ""z"" (symbol 4)","InputSymbolError ""z"" (symbol 4)",PASS
 P02-01,Subset construction: DFA state count,a*b*c* with an ε chain,-,4,4,PASS
 P02-02,Expected minimal states vs generated,a*b*c* with an ε chain,-,4,4,PASS
 P02-03,Minimisation: no more states than DFA,a*b*c* with an ε chain,-,true,true,PASS
@@ -99,7 +99,7 @@ P02-49,Minimal DFA simulation,a*b*c* with an ε chain,acb,Reject,Reject,PASS
 P02-50,ε-NFA simulation,a*b*c* with an ε chain,cba,Reject,Reject,PASS
 P02-51,DFA simulation,a*b*c* with an ε chain,cba,Reject,Reject,PASS
 P02-52,Minimal DFA simulation,a*b*c* with an ε chain,cba,Reject,Reject,PASS
-P02-53,Invalid symbol → InputSymbolError,a*b*c* with an ε chain,z,"InputSymbolError ""z"" at position 0","InputSymbolError ""z"" at position 0",PASS
+P02-53,Invalid symbol → InputSymbolError,a*b*c* with an ε chain,z,"InputSymbolError ""z"" (symbol 1)","InputSymbolError ""z"" (symbol 1)",PASS
 P03-01,Subset construction: DFA state count,ε-cycle,-,2,2,PASS
 P03-02,Expected minimal states vs generated,ε-cycle,-,2,2,PASS
 P03-03,Minimisation: no more states than DFA,ε-cycle,-,true,true,PASS
@@ -137,7 +137,7 @@ P03-34,Minimal DFA simulation,ε-cycle,bba,Reject,Reject,PASS
 P03-35,ε-NFA simulation,ε-cycle,aaa,Reject,Reject,PASS
 P03-36,DFA simulation,ε-cycle,aaa,Reject,Reject,PASS
 P03-37,Minimal DFA simulation,ε-cycle,aaa,Reject,Reject,PASS
-P03-38,Invalid symbol → InputSymbolError,ε-cycle,bz,"InputSymbolError ""z"" at position 1","InputSymbolError ""z"" at position 1",PASS
+P03-38,Invalid symbol → InputSymbolError,ε-cycle,bz,"InputSymbolError ""z"" (symbol 2)","InputSymbolError ""z"" (symbol 2)",PASS
 P04-01,Subset construction: DFA state count,ε path to a final state,-,4,4,PASS
 P04-02,Expected minimal states vs generated,ε path to a final state,-,4,4,PASS
 P04-03,Minimisation: no more states than DFA,ε path to a final state,-,true,true,PASS
@@ -169,7 +169,7 @@ P04-28,Minimal DFA simulation,ε path to a final state,abb,Reject,Reject,PASS
 P04-29,ε-NFA simulation,ε path to a final state,aab,Reject,Reject,PASS
 P04-30,DFA simulation,ε path to a final state,aab,Reject,Reject,PASS
 P04-31,Minimal DFA simulation,ε path to a final state,aab,Reject,Reject,PASS
-P04-32,Invalid symbol → InputSymbolError,ε path to a final state,z,"InputSymbolError ""z"" at position 0","InputSymbolError ""z"" at position 0",PASS
+P04-32,Invalid symbol → InputSymbolError,ε path to a final state,z,"InputSymbolError ""z"" (symbol 1)","InputSymbolError ""z"" (symbol 1)",PASS
 P05-01,Subset construction: DFA state count,Plain NFA: ends in 01,-,3,3,PASS
 P05-02,Expected DFA table vs generated,Plain NFA: ends in 01,-,"→A{q0}: 0→B 1→A; B{q0,q1}: 0→B 1→C; *C{q0,q2}: 0→B 1→A","→A{q0}: 0→B 1→A; B{q0,q1}: 0→B 1→C; *C{q0,q2}: 0→B 1→A",PASS
 P05-03,Expected minimal states vs generated,Plain NFA: ends in 01,-,3,3,PASS
@@ -211,7 +211,7 @@ P05-38,Minimal DFA simulation,Plain NFA: ends in 01,010,Reject,Reject,PASS
 P05-39,ε-NFA simulation,Plain NFA: ends in 01,0110,Reject,Reject,PASS
 P05-40,DFA simulation,Plain NFA: ends in 01,0110,Reject,Reject,PASS
 P05-41,Minimal DFA simulation,Plain NFA: ends in 01,0110,Reject,Reject,PASS
-P05-42,Invalid symbol → InputSymbolError,Plain NFA: ends in 01,01z,"InputSymbolError ""z"" at position 2","InputSymbolError ""z"" at position 2",PASS
+P05-42,Invalid symbol → InputSymbolError,Plain NFA: ends in 01,01z,"InputSymbolError ""z"" (symbol 3)","InputSymbolError ""z"" (symbol 3)",PASS
 P06-01,Subset construction: DFA state count,Unreachable state,-,3,3,PASS
 P06-02,Expected minimal states vs generated,Unreachable state,-,3,3,PASS
 P06-03,Minimisation: no more states than DFA,Unreachable state,-,true,true,PASS
@@ -240,7 +240,7 @@ P06-25,Minimal DFA simulation,Unreachable state,ba,Reject,Reject,PASS
 P06-26,ε-NFA simulation,Unreachable state,aba,Reject,Reject,PASS
 P06-27,DFA simulation,Unreachable state,aba,Reject,Reject,PASS
 P06-28,Minimal DFA simulation,Unreachable state,aba,Reject,Reject,PASS
-P06-29,Invalid symbol → InputSymbolError,Unreachable state,az,"InputSymbolError ""z"" at position 1","InputSymbolError ""z"" at position 1",PASS
+P06-29,Invalid symbol → InputSymbolError,Unreachable state,az,"InputSymbolError ""z"" (symbol 2)","InputSymbolError ""z"" (symbol 2)",PASS
 P07-01,Subset construction: DFA state count,Missing transitions (dead state ∅),-,4,4,PASS
 P07-02,Expected DFA table vs generated,Missing transitions (dead state ∅),-,→A{q0}: a→B b→∅; B{q1}: a→∅ b→C; ∅: a→∅ b→∅; *C{q2}: a→∅ b→∅,→A{q0}: a→B b→∅; B{q1}: a→∅ b→C; ∅: a→∅ b→∅; *C{q2}: a→∅ b→∅,PASS
 P07-03,Expected minimal states vs generated,Missing transitions (dead state ∅),-,4,4,PASS
@@ -270,7 +270,7 @@ P07-26,Minimal DFA simulation,Missing transitions (dead state ∅),abb,Reject,Re
 P07-27,ε-NFA simulation,Missing transitions (dead state ∅),aba,Reject,Reject,PASS
 P07-28,DFA simulation,Missing transitions (dead state ∅),aba,Reject,Reject,PASS
 P07-29,Minimal DFA simulation,Missing transitions (dead state ∅),aba,Reject,Reject,PASS
-P07-30,Invalid symbol → InputSymbolError,Missing transitions (dead state ∅),abz,"InputSymbolError ""z"" at position 2","InputSymbolError ""z"" at position 2",PASS
+P07-30,Invalid symbol → InputSymbolError,Missing transitions (dead state ∅),abz,"InputSymbolError ""z"" (symbol 3)","InputSymbolError ""z"" (symbol 3)",PASS
 P08-01,Subset construction: DFA state count,Third symbol from the end is 1,-,8,8,PASS
 P08-02,Expected minimal states vs generated,Third symbol from the end is 1,-,8,8,PASS
 P08-03,Minimisation: no more states than DFA,Third symbol from the end is 1,-,true,true,PASS
@@ -320,7 +320,7 @@ P08-46,Minimal DFA simulation,Third symbol from the end is 1,1000,Reject,Reject,
 P08-47,ε-NFA simulation,Third symbol from the end is 1,0011,Reject,Reject,PASS
 P08-48,DFA simulation,Third symbol from the end is 1,0011,Reject,Reject,PASS
 P08-49,Minimal DFA simulation,Third symbol from the end is 1,0011,Reject,Reject,PASS
-P08-50,Invalid symbol → InputSymbolError,Third symbol from the end is 1,100z,"InputSymbolError ""z"" at position 3","InputSymbolError ""z"" at position 3",PASS
+P08-50,Invalid symbol → InputSymbolError,Third symbol from the end is 1,100z,"InputSymbolError ""z"" (symbol 4)","InputSymbolError ""z"" (symbol 4)",PASS
 P09-01,Subset construction: DFA state count,Multi-character symbols,-,4,4,PASS
 P09-02,Expected minimal states vs generated,Multi-character symbols,-,4,4,PASS
 P09-03,Minimisation: no more states than DFA,Multi-character symbols,-,true,true,PASS
@@ -355,7 +355,7 @@ P09-31,Minimal DFA simulation,Multi-character symbols,xif,Reject,Reject,PASS
 P09-32,ε-NFA simulation,Multi-character symbols,ifxx,Reject,Reject,PASS
 P09-33,DFA simulation,Multi-character symbols,ifxx,Reject,Reject,PASS
 P09-34,Minimal DFA simulation,Multi-character symbols,ifxx,Reject,Reject,PASS
-P09-35,Invalid symbol → InputSymbolError,Multi-character symbols,ifxz,"InputSymbolError ""z"" at position 3","InputSymbolError ""z"" at position 3",PASS
+P09-35,Invalid symbol → InputSymbolError,Multi-character symbols,ifxz,"InputSymbolError ""z"" (symbol 3)","InputSymbolError ""z"" (symbol 3)",PASS
 V01,Validation (error),No states declared,NO_STATES,NO_STATES reported,NO_STATES reported,PASS
 V02,Validation (error),Empty alphabet,EMPTY_ALPHABET,EMPTY_ALPHABET reported,EMPTY_ALPHABET reported,PASS
 V03,Validation (error),State q1 declared twice,DUPLICATE_STATE,DUPLICATE_STATE reported,DUPLICATE_STATE reported,PASS
