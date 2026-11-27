@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
-import { FormatError, fromJSON, toJSON } from '../core'
+import { IMPORT_ACCEPT, ImportError, importMachine, toJSON } from '../core'
 import { presets, type Preset } from '../presets'
 import { blankENFA } from '../model/edits'
 import { TABS, useApp } from '../store/automaton'
@@ -167,12 +167,13 @@ export function Navbar({ onDocs, onAbout }: { onDocs: () => void; onAbout: () =>
 
   const onImport = async (file: File) => {
     try {
-      const nfa = fromJSON(await file.text())
+      const { nfa, format } = importMachine(file.name, await file.text())
       commit(nfa, 'import')
-      toast({ message: `Imported ${file.name}`, tone: 'success', action: undoAction })
+      const kind = format === 'jff' ? ' (JFLAP)' : format === 'txt' ? ' (text format)' : ''
+      toast({ message: `Imported ${file.name}${kind}`, tone: 'success', action: undoAction })
     } catch (e) {
-      const reason = e instanceof FormatError ? e.message : 'The file could not be read.'
-      toast({ message: `Could not import ${file.name}: ${reason}`, tone: 'error' })
+      const reason = e instanceof ImportError ? e.message : 'The file could not be read.'
+      toast({ message: `Could not import ${file.name}. ${reason}`, tone: 'error' })
     }
   }
 
@@ -223,7 +224,7 @@ export function Navbar({ onDocs, onAbout }: { onDocs: () => void; onAbout: () =>
       <div className="flex-1" />
 
       <div className="flex items-center gap-0.5">
-        <NavButton compact icon={<UploadIcon size={15} />} label="Import" title="Import a machine from a JSON file" onClick={() => fileInput.current?.click()} />
+        <NavButton compact icon={<UploadIcon size={15} />} label="Import" title="Import a machine from a .json, .jff (JFLAP) or .txt file" onClick={() => fileInput.current?.click()} />
         <NavButton compact icon={<DownloadIcon size={15} />} label="Export" title="Download this machine as JSON" onClick={onExport} />
         <NavButton compact icon={<FileIcon size={15} />} label="New" title="Start from a blank machine" onClick={onNew} />
       </div>
@@ -237,7 +238,7 @@ export function Navbar({ onDocs, onAbout }: { onDocs: () => void; onAbout: () =>
       <input
         ref={fileInput}
         type="file"
-        accept=".json,application/json"
+        accept={IMPORT_ACCEPT}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]

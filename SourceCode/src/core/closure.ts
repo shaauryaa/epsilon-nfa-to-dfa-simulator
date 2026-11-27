@@ -6,6 +6,12 @@
 import { indexOrder, sortByOrder } from './sets'
 import { EPSILON, type ENFA } from './types'
 
+/** δ(state, symbol) from own properties only, so names like "constructor" never hit inherited values. */
+function ownTargets(nfa: ENFA, state: string, symbol: string): readonly string[] {
+  const row = Object.hasOwn(nfa.transitions, state) ? nfa.transitions[state] : undefined
+  return row && Object.hasOwn(row, symbol) ? row[symbol] : []
+}
+
 /** Result of {@link epsilonClosureTrace}. */
 export interface ClosureTrace {
   /** The ε-closure, in declaration order. */
@@ -45,7 +51,7 @@ export function epsilonClosureTrace(nfa: ENFA, states: Iterable<string>): Closur
   pending.reverse()
   while (pending.length > 0) {
     const s = pending.pop() as string
-    const targets = nfa.transitions[s]?.[EPSILON] ?? []
+    const targets = ownTargets(nfa, s, EPSILON)
     const fresh: string[] = []
     for (const t of targets) {
       edges.push([s, t])
@@ -90,7 +96,7 @@ export function epsilonClosure(nfa: ENFA, states: Iterable<string>): string[] {
 export function move(nfa: ENFA, states: Iterable<string>, symbol: string): string[] {
   const out: string[] = []
   for (const s of states) {
-    for (const t of nfa.transitions[s]?.[symbol] ?? []) out.push(t)
+    for (const t of ownTargets(nfa, s, symbol)) out.push(t)
   }
   return sortByOrder(indexOrder(nfa.states), out)
 }

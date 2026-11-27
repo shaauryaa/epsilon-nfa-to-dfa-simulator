@@ -4,7 +4,7 @@
 
 import { epsilonClosure, move } from './closure'
 import { formatSet } from './sets'
-import type { DFA, ENFA } from './types'
+import { EPSILON, type DFA, type ENFA } from './types'
 
 /** Thrown by {@link tokenize} when the input contains something outside the alphabet. */
 export class InputSymbolError extends Error {
@@ -29,7 +29,9 @@ export class InputSymbolError extends Error {
  *   (maximal munch). Greedy matching is not backtracking: with alphabet
  *   {a, ab, bc} the input `abc` fails even though `a bc` would work.
  * - Whitespace between symbols is ignored (symbols never contain whitespace).
- * - The empty (or all-whitespace) string is ε and gives `[]`.
+ * - The empty (or all-whitespace) string is ε and gives `[]`. So is a lone
+ *   `ε` (ε can never be an alphabet symbol), so users may type ε to mean the
+ *   empty string.
  *
  * @param input - The string to split.
  * @param alphabet - The declared symbols.
@@ -38,6 +40,7 @@ export class InputSymbolError extends Error {
  *   piece of input that does not start any alphabet symbol.
  */
 export function tokenize(input: string, alphabet: readonly string[]): string[] {
+  if (input.trim() === EPSILON) return []
   const tokens: string[] = []
   const symbols = new Set(alphabet)
   const singleChar = alphabet.every((s) => [...s].length === 1)
@@ -156,7 +159,9 @@ export function simulateDFA(dfa: DFA, tokens: readonly string[]): DFASimulation 
   const path = [current]
   const steps: DFAStep[] = []
   for (const symbol of tokens) {
-    const to = dfa.transitions[current]?.[symbol]
+    // Own properties only: a symbol such as "constructor" must not find an inherited value.
+    const row = Object.hasOwn(dfa.transitions, current) ? dfa.transitions[current] : undefined
+    const to = row && Object.hasOwn(row, symbol) ? row[symbol] : undefined
     if (to === undefined) {
       steps.push({
         symbol,
@@ -166,7 +171,7 @@ export function simulateDFA(dfa: DFA, tokens: readonly string[]): DFASimulation 
       })
       return { accepted: false, path, steps }
     }
-    const sub = dfa.subsets?.[to]
+    const sub = dfa.subsets && Object.hasOwn(dfa.subsets, to) ? dfa.subsets[to] : undefined
     steps.push({
       symbol,
       from: current,

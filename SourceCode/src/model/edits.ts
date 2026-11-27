@@ -8,7 +8,14 @@
  * the problem to the user.
  */
 
-import { EPSILON, EPSILON_KEYWORDS, type ENFA } from '../core'
+import { EPSILON, isReservedName, type ENFA } from '../core'
+
+/**
+ * Words the "Add transition" form reads as ε. Deliberately only `ε` and
+ * `eps`: a typed `e` is an ordinary new symbol here, never silently ε. (The
+ * text format keeps its documented keywords, see `parseText`.)
+ */
+export const FORM_EPSILON_WORDS: readonly string[] = [EPSILON, 'eps']
 
 /**
  * Returns a deep copy of an ε-NFA.
@@ -285,6 +292,8 @@ export function checkName(name: string, taken: readonly string[], kind: 'state' 
   if (name.length === 0) return 'Enter a name.'
   if (/[\s,]/.test(name)) return 'Names cannot contain spaces or commas.'
   if (kind === 'symbol' && name === EPSILON) return 'ε is reserved for empty moves.'
+  if (kind === 'symbol' && FORM_EPSILON_WORDS.includes(name)) return `"${name}" is how ε is typed in the transition form; pick another symbol.`
+  if (isReservedName(name)) return `"${name}" is a reserved word; pick another name.`
   if (taken.includes(name)) return kind === 'state' ? `“${name}” is already a state.` : `“${name}” is already a symbol.`
   return null
 }
@@ -333,9 +342,9 @@ export function toggleTarget(nfa: ENFA, from: string, symbol: string, to: string
 
 /**
  * Reads the symbol field of the "Add transition" form. Several symbols may
- * be separated by commas or spaces (`a,b`). The words `eps`, `epsilon`, `e`
- * and `ε` mean ε, unless the word is itself in the alphabet (the same rule
- * the text format uses).
+ * be separated by commas or spaces (`a,b`). Only `ε` and `eps` mean ε
+ * ({@link FORM_EPSILON_WORDS}), and `eps` only while it is not an alphabet
+ * symbol. Every other word, including `e`, is a symbol.
  *
  * @param raw - What the user typed.
  * @param alphabet - The current alphabet.
@@ -346,7 +355,7 @@ export function parseSymbols(raw: string, alphabet: readonly string[]): string[]
   const out = raw
     .split(/[\s,]+/)
     .filter(Boolean)
-    .map((w) => (w === EPSILON || (EPSILON_KEYWORDS.includes(w) && !alphabet.includes(w)) ? EPSILON : w))
+    .map((w) => (w === EPSILON || (FORM_EPSILON_WORDS.includes(w) && !alphabet.includes(w)) ? EPSILON : w))
   return [...new Set(out)]
 }
 

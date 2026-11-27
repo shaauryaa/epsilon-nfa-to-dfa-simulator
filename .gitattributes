@@ -1,2 +1,8 @@
+# Store and check out every text file with LF endings on all platforms, so
+# test:report output and clean clones on Windows never show line-ending-only changes.
+* text=auto eol=lf
 .githooks/* text eol=lf
 *.sh text eol=lf
+*.png binary
+*.ttf binary
+*.pdf binary

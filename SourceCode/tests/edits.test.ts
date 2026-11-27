@@ -6,6 +6,7 @@ import {
   addTransition,
   blankENFA,
   checkName,
+  FORM_EPSILON_WORDS,
   cloneENFA,
   deleteState,
   deleteSymbol,
@@ -195,16 +196,26 @@ describe('single-transition edits', () => {
 })
 
 describe('parseSymbols', () => {
-  it('splits a,b and maps ε keywords to ε', () => {
+  it('splits a,b and maps only ε and eps to ε', () => {
     expect(parseSymbols('a, b a', ['a', 'b'])).toEqual(['a', 'b'])
     expect(parseSymbols('eps', ['a'])).toEqual([E])
-    expect(parseSymbols('ε,epsilon', ['a'])).toEqual([E])
+    expect(parseSymbols('ε,eps', ['a'])).toEqual([E])
     expect(parseSymbols('  ', ['a'])).toEqual([])
   })
 
-  it('treats a keyword that is in the alphabet as a symbol', () => {
+  it('never reads a typed e (or epsilon) as ε: it is a new symbol (B7)', () => {
     expect(parseSymbols('e', ['e'])).toEqual(['e'])
-    expect(parseSymbols('e', ['a'])).toEqual([E])
+    expect(parseSymbols('e', ['a'])).toEqual(['e'])
+    expect(parseSymbols('epsilon', ['a'])).toEqual(['epsilon'])
+    expect(FORM_EPSILON_WORDS).toEqual([E, 'eps'])
+  })
+
+  it('checkName keeps eps free for ε and rejects reserved object keys (B6, B7)', () => {
+    expect(checkName('eps', [], 'symbol')).toMatch(/how ε is typed/)
+    expect(checkName('e', [], 'symbol')).toBeNull()
+    expect(checkName('constructor', [], 'symbol')).toMatch(/reserved/)
+    expect(checkName('__proto__', [], 'state')).toMatch(/reserved/)
+    expect(checkName('toString', [], 'state')).toMatch(/reserved/)
   })
 })
 

@@ -84,6 +84,12 @@ final: q2
 q0 a -> q0 q1     # several targets
 q1 eps -> q2      # ε-move (eps, epsilon or ε)`}
         </pre>
+        <p className="mt-2 text-xs leading-relaxed text-slate-600">
+          In the text format <span className={eps}>e</span> also means ε unless <span className="font-mono">e</span> is in the alphabet. In the
+          Add transition form only <span className={eps}>ε</span> and <span className={eps}>eps</span> mean ε, so a typed{' '}
+          <span className="font-mono">e</span> becomes a new symbol. Import reads this app’s <span className="font-mono">.json</span>, JFLAP{' '}
+          <span className="font-mono">.jff</span> and this text format (<span className="font-mono">.txt</span>).
+        </p>
       </section>
       <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
         <strong>Shortcuts:</strong> <kbd className={kbd}>Ctrl</kbd> + <kbd className={kbd}>Z</kbd> undo ·{' '}

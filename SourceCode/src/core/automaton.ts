@@ -73,14 +73,40 @@ export const EPSILON_KEYWORDS: readonly string[] = ['eps', 'epsilon', EPSILON, '
 const BAD_NAME = /[\s,]/
 
 /**
+ * Whether a name is a built-in property of every JavaScript object
+ * (`constructor`, `toString`, `__proto__`, ...). Such names would make plain
+ * record lookups like `transitions[state]` find inherited values, so they
+ * are not allowed as state names or symbols.
+ *
+ * @param name - Candidate name.
+ * @returns `true` for a key of `Object.prototype` (including `__proto__`).
+ * @throws Never throws.
+ */
+export function isReservedName(name: string): boolean {
+  return name === '__proto__' || Object.prototype.hasOwnProperty.call(Object.prototype, name)
+}
+
+/**
  * Checks whether a string is usable as a state name or symbol.
  *
  * @param name - Candidate name.
- * @returns `true` if `name` is non-empty and contains no whitespace or commas.
+ * @returns `true` if `name` is non-empty, contains no whitespace or commas,
+ *   and is not a reserved object key (see {@link isReservedName}).
  * @throws Never throws.
  */
 export function isValidName(name: string): boolean {
-  return typeof name === 'string' && name.length > 0 && !BAD_NAME.test(name)
+  return typeof name === 'string' && name.length > 0 && !BAD_NAME.test(name) && !isReservedName(name)
+}
+
+function invalidNameMessage(kind: 'State name' | 'Symbol', name: string): string {
+  return isReservedName(name)
+    ? `${kind} "${name}" is reserved (a built-in JavaScript property name); pick another.`
+    : `${kind} "${name}" is blank or contains whitespace or a comma.`
+}
+
+/** Sets an own property, even for a key such as `__proto__` that a plain assignment would treat specially. */
+function setOwn<T>(obj: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true })
 }
 
 /**
@@ -112,7 +138,7 @@ export function validateENFA(nfa: ENFA): ValidationResult {
     if (!isValidName(s)) {
       errors.push({
         code: 'INVALID_NAME',
-        message: `State name "${s}" is blank or contains whitespace or a comma.`,
+        message: invalidNameMessage('State name', s),
         state: s,
       })
     }
@@ -133,7 +159,7 @@ export function validateENFA(nfa: ENFA): ValidationResult {
     } else if (!isValidName(a)) {
       errors.push({
         code: 'INVALID_NAME',
-        message: `Symbol "${a}" is blank or contains whitespace or a comma.`,
+        message: invalidNameMessage('Symbol', a),
         symbol: a,
       })
     }
@@ -202,7 +228,7 @@ export function validateENFA(nfa: ENFA): ValidationResult {
     const stack = [nfa.start]
     while (stack.length > 0) {
       const s = stack.pop() as string
-      for (const targets of Object.values(transitions[s] ?? {})) {
+      for (const targets of Object.values(Object.hasOwn(transitions, s) ? transitions[s] : {})) {
         for (const t of targets) {
           if (!seen.has(t)) {
             seen.add(t)
@@ -420,10 +446,12 @@ export function fromJSON(json: string): ENFA {
     if (typeof row !== 'object' || row === null || Array.isArray(row)) {
       throw new FormatError(`"transitions.${src}" must be an object.`)
     }
-    transitions[src] = {}
+    // Own properties only, so a key such as "__proto__" stays data and validateENFA reports it.
+    const out: Record<string, string[]> = {}
+    setOwn(transitions, src, out)
     for (const [sym, targets] of Object.entries(row as Record<string, unknown>)) {
       if (!isStrings(targets)) throw new FormatError(`"transitions.${src}.${sym}" must be an array of strings.`)
-      transitions[src][sym] = [...targets]
+      setOwn(out, sym, [...targets])
     }
   }
   return { states: [...o.states], alphabet: [...o.alphabet], start: o.start, finals: [...o.finals], transitions }
