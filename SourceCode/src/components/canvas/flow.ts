@@ -41,6 +41,8 @@ export interface FitOptions {
    * shows the whole graph.
    */
   mode?: FitMode
+  /** Space kept clear at the bottom (e.g. for a legend), in px. */
+  bottomInset?: number
 }
 
 /** True when the user asked for reduced motion. */
@@ -91,6 +93,6 @@ export function fitReadable(rf: ReactFlowInstance, el: HTMLElement | null, opts:
   const edges = (opts.edges ?? []).filter((e) => ids.has(e.source) && ids.has(e.target))
   const box = graphBounds(nodes, edges)
   if (!box) return
-  const view = fitViewport(box, el.clientWidth, el.clientHeight, opts.mode ?? 'readable')
+  const view = fitViewport(box, el.clientWidth, el.clientHeight, opts.mode ?? 'readable', opts.bottomInset ?? 0)
   rf.setViewport(view, { duration: prefersReducedMotion() ? 0 : (opts.duration ?? 0) })
 }

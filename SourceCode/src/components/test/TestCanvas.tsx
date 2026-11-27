@@ -15,6 +15,8 @@ import { arrow, prefersReducedMotion, routeAll } from '../canvas/flow'
 import type { StateNodeData, TransitionEdgeData } from '../canvas/graphParts'
 import { dfaRoutes } from '../canvas/dfaRoutes'
 import { NotConvertible, Pane, Swatch } from '../convert/ConvertCanvas'
+import { usePaneBoxes } from '../canvas/usePaneBoxes'
+import { PaneSwitch, SplitPanes } from '../canvas/SplitPanes'
 import { useConversion } from '../convert/useConversion'
 import { useTestClock, useTestRun, useTestView, type TestView } from './testData'
 
@@ -86,6 +88,9 @@ function Tape({ view, tokens, error }: { view: TestView | null; tokens: string[]
           {Math.min(consumed, tokens.length)} / {tokens.length} read
         </span>
       )}
+      <div className="shrink-0 border-l border-slate-200 pl-3">
+        <PaneSwitch tab="test" labels={['ε-NFA', 'DFA']} />
+      </div>
     </div>
   )
 }
@@ -264,7 +269,7 @@ function DfaRunPane({ view, dfa }: { view: TestView | null; dfa: DFA }) {
 function StillDfaPane({ view, dfa, reason }: { view: TestView | null; dfa: DFA; reason: 'large' | 'long' }) {
   const path = view ? traceText(dfaTraceCells(view.run.trace)) : null
   return (
-    <div className="grid h-full w-[40%] max-w-[460px] min-w-[300px] shrink-0 place-items-center overflow-auto bg-slate-50 p-5">
+    <div className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-auto bg-slate-50 p-5">
       <div role="status" className="max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-900">{reason === 'large' ? 'DFA diagram hidden' : 'Run shown as text'}</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-pretty text-slate-600">
@@ -296,18 +301,31 @@ export function TestCanvas() {
   return (
     <div className="flex h-full flex-col">
       <Tape view={view} tokens={tokens} error={run.check.ok ? null : run.check.message} />
-      <div className="flex min-h-0 flex-1 divide-x divide-slate-200">
-        <ReactFlowProvider>
+      <TestPanes view={view} dfa={dfa} still={run.still} large={conversion.large} />
+    </div>
+  )
+}
+
+function TestPanes({ view, dfa, still, large }: { view: TestView | null; dfa: DFA; still: 'large' | 'long' | null; large: boolean }) {
+  const boxes = usePaneBoxes(large ? null : dfa)
+  return (
+    <SplitPanes
+      tab="test"
+      boxes={boxes}
+      first={
+        <ReactFlowProvider key="nfa">
           <NfaRunPane view={view} />
         </ReactFlowProvider>
-        {run.still ? (
-          <StillDfaPane view={view} dfa={dfa} reason={run.still} />
+      }
+      second={
+        still ? (
+          <StillDfaPane key="dfa" view={view} dfa={dfa} reason={still} />
         ) : (
-          <ReactFlowProvider>
+          <ReactFlowProvider key="dfa">
             <DfaRunPane view={view} dfa={dfa} />
           </ReactFlowProvider>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }

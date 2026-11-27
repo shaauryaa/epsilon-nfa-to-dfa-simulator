@@ -16,6 +16,8 @@ import { CanvasMiniMap, MapToggle, toolButton } from '../canvas/GraphView'
 import { Button } from '../ui/Button'
 import { AlertIcon, FitIcon } from '../ui/Icons'
 import { dfaRoutes } from '../canvas/dfaRoutes'
+import { CanvasBar, SplitPanes } from '../canvas/SplitPanes'
+import { usePaneBoxes } from '../canvas/usePaneBoxes'
 import { useConversion, useConvertClock, useConvertView, type ConvertView } from './useConversion'
 import type { Conversion } from '../../store/convert'
 
@@ -41,6 +43,9 @@ export interface PaneProps {
   fitMode?: 'readable' | 'whole'
 }
 
+/** Height kept clear for a pane's legend when fitting, in px. */
+const LEGEND_INSET = 40
+
 /** Time for the camera to follow playback, in ms. */
 const FOLLOW_MS = 360
 
@@ -52,16 +57,20 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
   const showMap = mapChoice ?? stateCount >= MINIMAP_MIN_STATES
   const latest = useRef(nodes)
   const latestEdges = useRef(edges)
+  /** Room for the legend at the bottom left, so it never covers states. */
+  const inset = useRef(0)
+  const hasLegend = !!legend
   useLayoutEffect(() => {
     latest.current = nodes
     latestEdges.current = edges
-  }, [nodes, edges])
+    inset.current = hasLegend ? LEGEND_INSET : 0
+  }, [nodes, edges, hasLegend])
   /** Fit button: the whole graph, zooming out as far as needed. */
   const fit = (duration = 0) =>
-    fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole' })
+    fitReadable(rf, wrapper.current, { includeHidden: true, duration, nodes: latest.current, edges: latestEdges.current, mode: 'whole', bottomInset: inset.current })
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))
+    const id = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode, bottomInset: inset.current }))
     return () => cancelAnimationFrame(id)
   }, [fitKey, rf, fitMode])
 
@@ -91,7 +100,7 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
       last = size
       if (first) return
       cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))
+      frame = requestAnimationFrame(() => fitReadable(rf, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode, bottomInset: inset.current }))
     })
     ro.observe(el)
     return () => {
@@ -101,7 +110,7 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
   }, [rf, fitMode])
 
   return (
-    <div ref={wrapper} className="relative h-full min-w-0 flex-1 bg-slate-50">
+    <div ref={wrapper} className="relative min-h-0 min-w-0 flex-1 bg-slate-50">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -112,7 +121,7 @@ export function Pane({ title, subtitle, nodes, edges, fitKey, legend, stateCount
         elementsSelectable={false}
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
-        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode }))}
+        onInit={(inst) => requestAnimationFrame(() => fitReadable(inst, wrapper.current, { includeHidden: true, nodes: latest.current, edges: latestEdges.current, mode: fitMode, bottomInset: inset.current }))}
         minZoom={MIN_ZOOM}
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
@@ -350,7 +359,7 @@ function DfaPane({ view }: { view: ConvertView }) {
 function LargeDfaPane({ conversion }: { conversion: Conversion }) {
   const dfa = conversion.result.dfa
   return (
-    <div className="grid h-full min-w-0 flex-1 place-items-center bg-slate-50 p-6">
+    <div className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-auto bg-slate-50 p-6">
       <div role="status" className="max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-900">DFA diagram hidden</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-pretty text-slate-600">{largeDfaNotice(dfa.states.length, dfa.deadState !== null)}</p>
@@ -400,31 +409,35 @@ export function NotConvertible() {
   )
 }
 
-/** Convert-mode canvas: ε-NFA on the left, the DFA being built on the right. */
+/** Convert-mode canvas: ε-NFA and the DFA being built, side by side or stacked, or one of them alone. */
 export function ConvertCanvas() {
   useConvertClock()
   const conversion = useConversion()
   const view = useConvertView()
+  const boxes = usePaneBoxes(conversion && !conversion.large ? conversion.result.dfa : null)
   useEffect(() => () => useConvert.getState().pause(), [])
-  if (conversion?.large) {
-    return (
-      <div className="flex h-full divide-x divide-slate-200">
-        <ReactFlowProvider>
-          <NfaPane view={null} />
-        </ReactFlowProvider>
-        <LargeDfaPane conversion={conversion} />
-      </div>
-    )
-  }
-  if (!view) return <NotConvertible />
+  if (!conversion || (!conversion.large && !view)) return <NotConvertible />
   return (
-    <div className="flex h-full divide-x divide-slate-200">
-      <ReactFlowProvider>
-        <NfaPane view={view} />
-      </ReactFlowProvider>
-      <ReactFlowProvider>
-        <DfaPane view={view} />
-      </ReactFlowProvider>
+    <div className="flex h-full flex-col">
+      <CanvasBar tab="convert" labels={['ε-NFA', 'DFA']} />
+      <SplitPanes
+        tab="convert"
+        boxes={boxes}
+        first={
+          <ReactFlowProvider key="nfa">
+            <NfaPane view={conversion.large ? null : view} />
+          </ReactFlowProvider>
+        }
+        second={
+          conversion.large || !view ? (
+            <LargeDfaPane key="dfa" conversion={conversion} />
+          ) : (
+            <ReactFlowProvider key="dfa">
+              <DfaPane view={view} />
+            </ReactFlowProvider>
+          )
+        }
+      />
     </div>
   )
 }

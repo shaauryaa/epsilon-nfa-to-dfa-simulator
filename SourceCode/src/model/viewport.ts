@@ -136,12 +136,13 @@ export type FitMode = 'readable' | 'whole'
  * @param width - Pane width in px.
  * @param height - Pane height in px.
  * @param mode - See {@link FitMode}.
+ * @param bottomInset - Extra space kept clear at the bottom, e.g. for a legend, in px (default 0).
  * @returns The viewport.
  * @throws Never throws; a zero-sized pane gives the minimum zoom.
  */
-export function fitViewport(box: Rect, width: number, height: number, mode: FitMode): Viewport {
+export function fitViewport(box: Rect, width: number, height: number, mode: FitMode, bottomInset = 0): Viewport {
   const w = Math.max(1, width - 2 * FIT_MARGIN)
-  const h = Math.max(1, height - TOP_INSET - FIT_MARGIN)
+  const h = Math.max(1, height - TOP_INSET - FIT_MARGIN - bottomInset)
   const bw = Math.max(1, box.width)
   const bh = Math.max(1, box.height)
   const floor = mode === 'whole' ? FIT_MIN_ZOOM : READABLE_ZOOM
@@ -236,4 +237,43 @@ export function followViewport(view: Viewport, width: number, height: number, bo
   const next = { zoom, x: width / 2 - cx * zoom, y: (height + TOP_INSET) / 2 - cy * zoom }
   const same = Math.abs(next.zoom - view.zoom) < 1e-3 && Math.abs(next.x - view.x) < 1 && Math.abs(next.y - view.y) < 1
   return same ? null : next
+}
+
+/** How two panes share the canvas: side by side (`cols`) or one above the other (`rows`). */
+export type SplitDirection = 'rows' | 'cols'
+
+/**
+ * The zoom a whole-graph fit would use for a drawing in a pane of the given
+ * size (the same rule as {@link fitViewport}, without the floor).
+ *
+ * @param box - The drawing's bounds.
+ * @param width - Pane width in px.
+ * @param height - Pane height in px.
+ * @returns The zoom, at most {@link FIT_MAX_ZOOM}.
+ * @throws Never throws.
+ */
+export function wholeFitZoom(box: Rect, width: number, height: number): number {
+  const w = Math.max(1, width - 2 * FIT_MARGIN)
+  const h = Math.max(1, height - TOP_INSET - FIT_MARGIN)
+  return Math.min(FIT_MAX_ZOOM, w / Math.max(1, box.width), h / Math.max(1, box.height))
+}
+
+/**
+ * Chooses how two graphs share a canvas so the smaller of their two fit
+ * zooms is as large as possible. Left-to-right automata are wide and flat,
+ * so on most screens stacking them (`rows`) gives each graph the full
+ * width and bigger circles than splitting the width (`cols`).
+ *
+ * @param a - Bounds of the first graph, or `null` if unknown.
+ * @param b - Bounds of the second graph, or `null` if unknown.
+ * @param width - Canvas width in px.
+ * @param height - Canvas height in px.
+ * @returns The direction with the larger worst-case zoom (`cols` on a tie or when a box is unknown).
+ * @throws Never throws.
+ */
+export function chooseSplit(a: Rect | null, b: Rect | null, width: number, height: number): SplitDirection {
+  if (!a || !b || width <= 0 || height <= 0) return 'cols'
+  const cols = Math.min(wholeFitZoom(a, width / 2, height), wholeFitZoom(b, width / 2, height))
+  const rows = Math.min(wholeFitZoom(a, width, height / 2), wholeFitZoom(b, width, height / 2))
+  return rows > cols + 1e-6 ? 'rows' : 'cols'
 }

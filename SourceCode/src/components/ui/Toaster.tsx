@@ -2,16 +2,16 @@ import { useToasts } from '../../store/toasts'
 import { AlertIcon, CheckIcon, CloseIcon, InfoIcon } from './Icons'
 
 /**
- * Renders the toast stack at the top centre of the canvas column, below the
- * canvas toolbar so it never covers the canvas controls.
+ * Renders the toast stack at the bottom centre of the canvas, above the zoom
+ * controls and legends, so it never covers the pane titles or toolbars at
+ * the top. It must sit inside a positioned canvas container.
  */
 export function Toaster() {
   const { toasts, dismiss, hold, release } = useToasts()
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed z-50 flex flex-col items-center gap-2 px-4"
-      style={{ top: 'calc(var(--nav-h) + 60px)', left: 'var(--left-w)', right: 'var(--right-w)' }}
+      className="pointer-events-none absolute inset-x-0 bottom-16 z-50 flex flex-col-reverse items-center gap-2 px-4"
     >
       {toasts.map((t) => (
         <div

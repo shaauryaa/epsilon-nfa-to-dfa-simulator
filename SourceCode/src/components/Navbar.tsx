@@ -105,7 +105,7 @@ function NavButton({ icon, label, title, onClick, compact }: { icon: ReactNode; 
 function ExampleChips() {
   const presetId = useApp((s) => s.presetId)
   return (
-    <div className="hidden items-center gap-1.5 xl:flex">
+    <div className="hidden items-center gap-1.5 min-[1500px]:flex">
       {QUICK.map((p) => {
         const on = presetId === p.id
         return (

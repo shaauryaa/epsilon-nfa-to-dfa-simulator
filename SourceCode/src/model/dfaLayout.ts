@@ -13,6 +13,7 @@ import { layoutLR, NODE_SIZE, type XY } from '../graph/layout'
 import type { Rect } from '../graph/routing'
 import { mergedEdges } from './graph'
 import { gridLayout, isTooLargeToDraw } from './largeDfa'
+import { drawingBounds } from './viewport'
 
 /** Spacing for DFA layouts. Captions are part of each node box, so the gaps can stay modest. */
 export const DFA_SPACING = { nodesep: 28, ranksep: 48 }
@@ -98,6 +99,7 @@ export function dfaCaptions(dfa: DFA): Record<string, string> {
 }
 
 const layouts = new WeakMap<DFA, Record<string, XY>>()
+const customLayouts = new WeakMap<DFA, Record<string, XY>>()
 
 /**
  * Lays out a whole DFA once, so states keep their place as they are
@@ -108,20 +110,50 @@ const layouts = new WeakMap<DFA, Record<string, XY>>()
  * plain grid, used only for exports such as JFLAP positions.
  *
  * @param dfa - The DFA.
+ * @param captions - Captions to lay out instead of the NFA subsets (e.g. for
+ *   a minimal DFA); states without one get a circle-only box. A DFA should
+ *   always be laid out with the same captions: the result is cached per DFA
+ *   object, once with subsets and once with custom captions.
  * @returns Top-left position of each state's circle. Cached per DFA object.
  * @throws Never throws.
  */
-export function layoutDFA(dfa: DFA): Record<string, XY> {
-  const hit = layouts.get(dfa)
+export function layoutDFA(dfa: DFA, captions?: Readonly<Record<string, string>>): Record<string, XY> {
+  const cache = captions ? customLayouts : layouts
+  const hit = cache.get(dfa)
   if (hit) return hit
   let out: Record<string, XY>
   if (isTooLargeToDraw(dfa.states.length)) out = gridLayout(dfa.states)
   else {
+    const caption = (s: string) => (captions ? captions[s] : dfaCaption(dfa, s))
     const boxes = Object.fromEntries(
-      dfa.states.map((s) => [s, { width: captionWidth(dfaCaption(dfa, s)) + 8, height: NODE_SIZE + CAPTION.gap + CAPTION.height + 4 }]),
+      dfa.states.map((s) => {
+        const text = caption(s)
+        return [s, text ? { width: captionWidth(text) + 8, height: NODE_SIZE + CAPTION.gap + CAPTION.height + 4 } : { width: NODE_SIZE, height: NODE_SIZE }]
+      }),
     )
     out = layoutLR(dfa.states, mergedEdges(dfaToENFA(dfa)), DFA_SPACING, boxes)
   }
-  layouts.set(dfa, out)
+  cache.set(dfa, out)
   return out
 }
+
+/**
+ * A rough bounding box of a drawing from its state positions (and captions),
+ * padded for self-loops above and curved edges, for choosing the split.
+ *
+ * @param positions - Top-left of each state circle.
+ * @param start - The start state, for its arrow.
+ * @param captions - Caption text per state, if any.
+ * @returns The padded box, or `null` for an empty graph.
+ * @throws Never throws.
+ */
+export function roughBox(positions: Readonly<Record<string, XY>>, start?: string, captions: Readonly<Record<string, string>> = {}): Rect | null {
+  const box = drawingBounds({
+    positions: Object.values(positions),
+    start: start ? positions[start] : null,
+    captions: captionRects(positions, captions),
+  })
+  if (!box) return null
+  return { x: box.x - 16, y: box.y - NODE_SIZE * 0.7, width: box.width + 32, height: box.height + NODE_SIZE * 1.1 }
+}
+
